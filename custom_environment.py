@@ -32,6 +32,7 @@ def print_state(state, size=9):
     left = state[10]
     right = state[11]
     bottom = state[12]
+    last_action = state[13] if len(state) > 13 else None
     
     # Print layout:
     #     [ T ]
@@ -50,6 +51,12 @@ def print_state(state, size=9):
     print(f"Left: {left}       Right: {right}")
     print()
     print(f"  Bottom: {bottom}")
+    
+    if last_action is not None:
+        action_map = {0: "↑ up", 1: "↓ down", 2: "← left", 3: "→ right"}
+        print()
+        print(f"Last Action: {last_action} ({action_map.get(last_action, 'unknown')})")
+
     print("==============================\n")
         
         
@@ -68,8 +75,8 @@ class Agent(BaseAgent):
         self.controller_x = PID(Kp, Ki, Kd, setpoint=0)
         self.controller_y = PID(Kp, Ki, Kd, setpoint=0)
         self.terminated =  False
-        self.last_action = None
-        self.a_star_action = []
+        self.a_star_action = None
+        self.action_history = []
 
 
 class Landmark(BaseLandmark):
@@ -617,7 +624,7 @@ class raw_env(SimpleEnv, EzPickle):
                 if(r, c) == (agent_grid, agent_grid):
                     a_star_action = self.a_star_direction(agent, a_star_new)
                     raw_grid[r][c] = a_star_action
-                    agent.a_star_action.append(a_star_action)
+                    agent.a_star_action = a_star_action
                 elif self.is_obstacle(x, y, q_learning=True, override_epsilon=0.015) or self.is_dyn_obstacle(x, y, agent):
                     raw_grid[r][c] = 1
 
@@ -644,21 +651,23 @@ class raw_env(SimpleEnv, EzPickle):
                     count += raw_grid[r][c]
             state.append(1 if count >= 2 else 0)
 
+        # add last action of agent to state
+        last_action = agent.action_history[-1] if agent.action_history else a_star_action
+        state.append(last_action)
+        
         return tuple(state)
     
     def a_star_direction(self, agent, a_star_new):
-        if not a_star_new:
-            return 4  # wait
 
         agent_pos = np.array(agent.state.p_pos)
-        closest_point = min(a_star_new, key=lambda point: np.linalg.norm(np.array(point) - agent_pos))
-
-        dx = closest_point[0] - agent_pos[0]
-        dy = closest_point[1] - agent_pos[1]
-
-        # If already very close to the point, return wait
-        if np.linalg.norm([dx, dy]) < 0.01:
-            return 4
+        
+        if not a_star_new:
+            target = np.array(agent.goal_point)
+        else:
+            target = min(a_star_new, key=lambda point: np.linalg.norm(np.array(point) - agent_pos))
+        
+        dx = target[0] - agent_pos[0]
+        dy = target[1] - agent_pos[1]
 
         # Prioritize dominant direction
         if abs(dx) > abs(dy):
@@ -725,7 +734,7 @@ class raw_env(SimpleEnv, EzPickle):
             agent_object.controller_x = PID(setpoint=0)
             agent_object.controller_y = PID(setpoint=0)
             agent_object.terminated = False
-            agent_object.a_star_action.clear()
+            agent_object.a_star_action = None
         return agent_states, agent_observations
     
         
@@ -809,6 +818,9 @@ class raw_env(SimpleEnv, EzPickle):
     
 
     def _execute_world_step(self):
+        # update q-state and a* direction before stepping the agents
+        for agent in self.world.agents:
+            agent.q_state = self.q_learning_state_space(agent, agent.a_star_new)
         # set action for each agent
         for i, agent in enumerate(self.world.agents):
             action = self.current_actions[i]
@@ -866,26 +878,15 @@ class raw_env(SimpleEnv, EzPickle):
             goal_point[0]=agent_x+gridsize
             goal_point[1]=agent_y   
             action_print = "right"
-        if action == 4: #wait
-            goal_point[0]=agent_x
-            goal_point[1]=agent_y
-            action_print = "wait"
         
-        if agent == None:
-            return goal_point
-        else:
-            #print(agent + ": Angesteuert wird Punkt: " + str(goal_point[0]) + ", " + str(goal_point[1]) + " . Von Punkt: "+str(agent_x) + " " + str(agent_y) + " . Aktion: " + action_print)
-            return goal_point
+        return goal_point
 
     def get_cont_action(self, observation, dimension, discrete_action, agent):
         agent_object = self.world.agents[self._index_map[agent]]
-        agent_object.last_action = discrete_action
+        agent_object.action_history.append(discrete_action)
+        if len(agent_object.action_history) > 2:
+            agent_object.action_history.pop(0)
         next_point = self.get_next_point(observation[0], observation[1], discrete_action, agent)
-        
-        if discrete_action == 4:  # WAIT
-            agent_object.controller_x.reset()
-            agent_object.controller_y.reset()
-            return np.zeros(dimension * 2 + 1)
         
         agent_object.controller_x.setpoint = next_point[0]
         agent_object.controller_y.setpoint = next_point[1]
@@ -897,10 +898,7 @@ class raw_env(SimpleEnv, EzPickle):
         
         action = np.zeros(dimension * 2 + 1)
         action[1] = -v_x
-        action[2] = 0
         action[3] = -v_y
-        action[4] = 0
-        #print(agent + ": vx: " + str(v_x) + " . vy: " + Fstr(v_y)) 
         return action
 
 
@@ -1005,6 +1003,13 @@ class Scenario(BaseScenario):
                 pos = np_random.uniform(-0.6, +0.6, world.dim_p)
                 if self.is_in_landmark(world, pos[0], pos[1]):
                     continue
+                
+                # check minimum distance
+                start_pos = agent.state.p_pos
+                distance = np.linalg.norm(pos - start_pos)
+                if distance < 0.25:
+                    continue
+                
                 goal_collision = any(
                     hasattr(other, 'goal_point') and isinstance(other.goal_point, list) and len(other.goal_point) == 2 and
                     np.linalg.norm(np.array(pos) - np.array(other.goal_point)) < 0.15
@@ -1052,27 +1057,30 @@ class Scenario(BaseScenario):
     
     def reward(self, agent, world):
         reward = 0
+        opposite = {0: 1, 1: 0, 2: 3, 3: 2}
+        
         for landmark in world.landmarks:
             if landmark.is_collision(agent):
-                reward -= 1    # collision
+                reward -= 2    # collision
                     
         for other_agent in world.agents:
             if self.is_collision(agent, other_agent):
                 if other_agent == agent:
                     continue
                 else:
-                    reward -= 1    # collision
+                    reward -= 1   # collision
         
         if self.is_out_of_bounds(agent):
             reward -= 1         # collision
-        
-        if agent.a_star_action:
-            if agent.last_action == agent.a_star_action[0]:
-                reward += 2     # choose a-star
-            agent.a_star_action.pop(0)
-        
-               
-        reward -= 0.01          # time penalty
+            
+        if agent.a_star_action is not None and agent.action_history[-1] == agent.a_star_action:
+                reward += 3         # choose a-star
+        if len(agent.action_history) >= 2:    
+            prev, curr = agent.action_history[-2], agent.action_history[-1]
+            if prev in opposite and opposite[prev] == curr:
+                reward -= 2      
+    
+        reward -= 0.1          # time penalty
                 
         return reward
 

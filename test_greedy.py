@@ -19,6 +19,7 @@ def print_state(state, size=9):
     left = state[10]
     right = state[11]
     bottom = state[12]
+    last_action = state[13] if len(state) > 13 else None
     
     # Print layout:
     #     [ T ]
@@ -37,6 +38,12 @@ def print_state(state, size=9):
     print(f"Left: {left}       Right: {right}")
     print()
     print(f"  Bottom: {bottom}")
+    
+    if last_action is not None:
+        action_map = {0: "↑ up", 1: "↓ down", 2: "← left", 3: "→ right"}
+        print()
+        print(f"Last Action: {last_action} ({action_map.get(last_action, 'unknown')})")
+
     print("==============================\n")
 
 
@@ -67,7 +74,7 @@ def evaluate_policy(Q, episodes=1, seed=42):
                 best_actions = np.flatnonzero(q_vals == max_q)
                 discrete_action = np.random.choice(best_actions)
                 action = env.get_cont_action(observation, env.world.dim_p, discrete_action, agent)
-
+                print(f"{agent}: is taking  {discrete_action}")
             env.step(action)
         pygame.event.pump()
 

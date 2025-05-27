@@ -22,6 +22,7 @@ def print_state(state, size=9):
     left = state[10]
     right = state[11]
     bottom = state[12]
+    last_action = state[13] if len(state) > 13 else None
     
     # Print layout:
     #     [ T ]
@@ -40,6 +41,12 @@ def print_state(state, size=9):
     print(f"Left: {left}       Right: {right}")
     print()
     print(f"  Bottom: {bottom}")
+    
+    if last_action is not None:
+        action_map = {0: "↑ up", 1: "↓ down", 2: "← left", 3: "→ right"}
+        print()
+        print(f"Last Action: {last_action} ({action_map.get(last_action, 'unknown')})")
+
     print("==============================\n")
 
 
@@ -86,23 +93,24 @@ class ReplayBuffer:
         return states, actions, rewards, next_states, terminates
     
 
-def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, checkpoint_freq=1000):
+def train(seed = None, kappa=1, T=100000, N=10, batchsize = 32, p = 0, c=0.01, checkpoint_freq=5000):
     if seed is not None:
         np.random.seed(seed)
     
     env = raw_env(render_mode="human")
     agent_states, agent_observations = env.reset(seed=42)
     
-    action_space_num = 5
-    gamma = 0.99
+    action_space_num = 4
+    gamma = 0.95
     
     num_states = 5_000_000
     replay_buffer = ReplayBuffer(max_size=70000, state_dim=1, action_dim=1)
-    
+    state_visit_count = {}
+
     def get_index(state):
         return stable_hash(state) % num_states
     
-    def epsilon_greedy_policy(state, Q, episode, epsilon_min = 0.1, epsilon_decay = 0.99):
+    def epsilon_greedy_policy(state, Q, episode, epsilon_min = 0.15, epsilon_decay = 0.99):
         idx = stable_hash(state) % num_states
 
         if episode <= 10:
@@ -146,6 +154,7 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                 else:
                     discrete_action = epsilon_greedy_policy(agent_states[agent], Q, episode)
                     action = env.get_cont_action(observation, env.world.dim_p, discrete_action, agent)
+
                     agent_actions[agent] = discrete_action
                 env.step(action)
             
@@ -159,7 +168,11 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                 agent_observations[agent] = observation 
                 if termination or truncation:
                     agent_done[agent] = True
-                replay_buffer.store_transition(agent_states[agent], agent_actions[agent], reward,next_state, agent_done[agent])
+                done_flag = termination and not env.scenario.is_goal(env.world.agents[env._index_map[agent]])
+                replay_buffer.store_transition(agent_states[agent], agent_actions[agent], reward, next_state, done_flag)
+                state_hash = get_index(agent_states[agent])
+                state_visit_count[state_hash] = state_visit_count.get(state_hash, 0) + 1
+
                 agent_states[agent] = next_state
                 env.next_agent()
                 
@@ -193,7 +206,7 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                 for _ in range(K):
                     agent_states, agent_observations = env.reset(seed=seed)
                     agent_done = {agent: False for agent in env.agents}
-
+                    step_counter = 0
                     while not all(agent_done[agent] for agent in agent_done):
                         env.agent_selection = env.agents[0]
                         for agent in env.agents:
@@ -211,7 +224,7 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                                 
                                 action = env.get_cont_action(observation, env.world.dim_p, discrete_action, agent)
                             env.step(action)
-                            
+                            step_counter += 1
                         env.agent_selection = env.agents[0]
                         for agent in env.agents:
                             if agent_done[agent] == True:
@@ -227,8 +240,9 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                             env.next_agent()
                 
                 total_episode_reward = sum(episode_rewards.values())
-                avg_episode_reward = total_episode_reward / len(env.agents)
-                reward_per_episode.append(avg_episode_reward)       
+                total_steps = step_counter * len(env.agents)
+                avg_reward_per_step = total_episode_reward / total_steps if total_steps > 0 else 0
+                reward_per_episode.append(avg_reward_per_step)      
                 agent_states, agent_observations= env.reset()
                 agent_done = {agent: False for agent in env.agents}
                     
@@ -247,7 +261,7 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                 axs[0].grid(True)
 
                 axs[1].plot(reward_per_episode, label="Reward", color="orange")
-                axs[1].set_title("Average reward per episode per agent")
+                axs[1].set_title("Average reward per step per agent")
                 axs[1].set_xlabel("Episode")
                 axs[1].set_ylabel("Reward")
                 axs[1].legend()
@@ -265,6 +279,8 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
             pickle.dump((Q, TD_error_per_episode, reward_per_episode), f)
         print("Succesfully saved training results.")
 
+        with open("state_visit_count.pkl", "wb") as f:
+            pickle.dump(state_visit_count, f)
 
         with open("checkpoint.pkl", "wb") as f:
             pickle.dump((Q, TD_error_per_episode, reward_per_episode, step, episode), f)
