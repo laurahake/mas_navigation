@@ -68,8 +68,10 @@ class Agent(BaseAgent):
         self.controller_x = PID(Kp, Ki, Kd, setpoint=0)
         self.controller_y = PID(Kp, Ki, Kd, setpoint=0)
         self.terminated =  False
-        self.last_action = None
-        self.a_star_action = []
+        self.a_star_action = None
+        self.action_history = []
+        self.reward = 0
+        self.trajectory = []
 
 
 class Landmark(BaseLandmark):
@@ -125,16 +127,32 @@ class RectLandmark(BaseLandmark):
     
     def is_collision(self, agent):
         buffer = agent.size
+        agent_x, agent_y = agent.state.p_pos
+        center_x, center_y = self.state.p_pos
 
-        x_min = self.state.p_pos[0] - self.size[0] / 2 - buffer
-        x_max = self.state.p_pos[0] + self.size[0] / 2 + buffer
-        y_min = self.state.p_pos[1] - self.size[1] / 2 - buffer
-        y_max = self.state.p_pos[1] + self.size[1] / 2 + buffer
-    
-        agent_x = agent.state.p_pos[0]
-        agent_y = agent.state.p_pos[1]
-    
-        return x_min <= agent_x <= x_max and y_min <= agent_y <= y_max   
+        half_width = self.size[0] / 2 + buffer
+        half_height = self.size[1] / 2 + buffer
+
+        # Bounding box check
+        if center_x - half_width <= agent_x <= center_x + half_width and \
+        center_y - half_height <= agent_y <= center_y + half_height:
+            
+            # Corner circles for leniency
+            corner_radius = 0.01
+            corners = [
+                (center_x - half_width, center_y - half_height),
+                (center_x + half_width, center_y - half_height),  
+                (center_x - half_width, center_y + half_height),  
+                (center_x + half_width, center_y + half_height),  
+            ]
+            
+            for cx, cy in corners:
+                dist = np.linalg.norm([agent_x - cx, agent_y - cy])
+                if dist < corner_radius:
+                    return False
+
+            return True
+        return False
     
 class World(BaseWorld):
     
@@ -313,7 +331,7 @@ class raw_env(SimpleEnv, EzPickle):
 
         # update bounds to center around agent
         all_poses = [entity.state.p_pos for entity in self.world.entities]
-        cam_range = np.max(np.abs(np.array(all_poses)))
+        cam_range = self.fixed_cam_range
 
         # update geometry and text positions
         text_line = 0
@@ -392,6 +410,28 @@ class raw_env(SimpleEnv, EzPickle):
                 pygame.draw.circle(
                     self.screen, (0, 0, 0), (x, y), agent_radius, 1
                 )
+                # Draw start position marker (small filled circle)
+                if hasattr(entity, "start_pos"):
+                    start_x = (entity.start_pos[0] / cam_range) * self.width // 2 * 0.9 + self.width // 2
+                    start_y = (-entity.start_pos[1] / cam_range) * self.height // 2 * 0.9 + self.height // 2
+
+                    pygame.draw.circle(
+                        self.screen,
+                        entity.color * 255,  
+                        (int(start_x), int(start_y)),
+                        int(agent_radius * 0.5)  
+                    )
+                
+                # draw agent trajectory
+                if hasattr(entity, "trajectory") and len(entity.trajectory) > 1:
+                    scale = (self.width / (2 * cam_range)) * 0.9
+                    screen_points = []
+                    for pos in entity.trajectory:
+                        tx = (pos[0] / cam_range) * self.width // 2 * 0.9 + self.width // 2
+                        ty = (-pos[1] / cam_range) * self.height // 2 * 0.9 + self.height // 2  # flip y
+                        screen_points.append((int(tx), int(ty)))
+
+                    pygame.draw.lines(self.screen, entity.color * 255, False, screen_points, 2)
                 # draw goal point
                 goal_x, goal_y = entity.goal_point
                 goal_y *= -1  # Flipping the y-axis
@@ -403,24 +443,88 @@ class raw_env(SimpleEnv, EzPickle):
                 pygame.draw.circle(
                     self.screen, entity.color * 200, (goal_x, goal_y), agent_radius, 6
                 )
-                # draw Q-Learning Area
-                area_size = 9
-                half_size = area_size//2
+                
                 cell_size = 0.05 * scale_factor
-                for dx in range(-half_size, half_size+1):
-                    for dy in range(-half_size, half_size+1):
-                        if dx == 0 and dy == 0:
-                            continue
-                        
+                # Draw center 3x3 grid
+                for dx in range(-1, 2):
+                    for dy in range(-1, 2):
                         cell_x = x + dx * cell_size
                         cell_y = y + dy * cell_size
-                        
                         pygame.draw.rect(
                             self.screen,
                             (100, 100, 255, 100),
                             pygame.Rect(
                                 cell_x - cell_size / 2,
                                 cell_y - cell_size / 2,
+                                cell_size,
+                                cell_size
+                            ),
+                            1
+                        )
+
+                # Draw 3x4 regions: top, bottom, left, right
+                # Top region (3 wide, 4 high)
+                for dx in range(-1, 2):
+                    for dy in range(1, 5):
+                        cx = x + dx * cell_size
+                        cy = y - (1 + dy) * cell_size
+                        pygame.draw.rect(
+                            self.screen,
+                            (100, 100, 255, 100),
+                            pygame.Rect(
+                                cx - cell_size / 2,
+                                cy - cell_size / 2,
+                                cell_size,
+                                cell_size
+                            ),
+                            1
+                        )
+
+                # Bottom region
+                for dx in range(-1, 2):
+                    for dy in range(1, 5):
+                        cx = x + dx * cell_size
+                        cy = y + (1 + dy) * cell_size
+                        pygame.draw.rect(
+                            self.screen,
+                            (100, 100, 255, 100),
+                            pygame.Rect(
+                                cx - cell_size / 2,
+                                cy - cell_size / 2,
+                                cell_size,
+                                cell_size
+                            ),
+                            1
+                        )
+
+                # Left region (4 wide, 3 high)
+                for dx in range(1, 5):
+                    for dy in range(-1, 2):
+                        cx = x - (1 + dx) * cell_size
+                        cy = y + dy * cell_size
+                        pygame.draw.rect(
+                            self.screen,
+                            (100, 100, 255, 100),
+                            pygame.Rect(
+                                cx - cell_size / 2,
+                                cy - cell_size / 2,
+                                cell_size,
+                                cell_size
+                            ),
+                            1
+                        )
+
+                # Right region
+                for dx in range(1, 5):
+                    for dy in range(-1, 2):
+                        cx = x + (1 + dx) * cell_size
+                        cy = y + dy * cell_size
+                        pygame.draw.rect(
+                            self.screen,
+                            (100, 100, 255, 100),
+                            pygame.Rect(
+                                cx - cell_size / 2,
+                                cy - cell_size / 2,
                                 cell_size,
                                 cell_size
                             ),
@@ -592,6 +696,32 @@ class raw_env(SimpleEnv, EzPickle):
         return False
     
     
+    def classify_region(self, grid_region, direction):
+        flat = [cell for row in grid_region for cell in row]
+        obstacle_count = sum(flat)
+
+        if obstacle_count < 4:
+            return 0  # free
+
+        if direction in ("top", "bottom"):
+            # Check if there is **any passable column** (i.e., not all 1s)
+            cols = list(zip(*grid_region))  # transpose
+            if any(any(cell == 0 for cell in col) for col in cols):
+                return 1  # passable
+            else:
+                return 2  # impassable
+
+        elif direction in ("left", "right"):
+            # Check if there is **any passable row** (i.e., not all 1s)
+            if any(any(cell == 0 for cell in row) for row in grid_region):
+                return 1  # passable
+            else:
+                return 2  # impassable
+
+        else:
+            raise ValueError(f"Unknown direction: {direction}")
+    
+    
     def q_learning_state_space(self, agent, a_star_new):
         """
         Description: returns the Q-Learning state space
@@ -600,8 +730,8 @@ class raw_env(SimpleEnv, EzPickle):
             free            = 0
             obstacle        = 1
         """
-        size = 9
-        agent_grid = 4
+        size = 11
+        agent_grid = 5
         cell_size = 0.05
         agent_pos_x = agent.state.p_pos[0]
         agent_pos_y = agent.state.p_pos[1]
@@ -617,7 +747,7 @@ class raw_env(SimpleEnv, EzPickle):
                 if(r, c) == (agent_grid, agent_grid):
                     a_star_action = self.a_star_direction(agent, a_star_new)
                     raw_grid[r][c] = a_star_action
-                    agent.a_star_action.append(a_star_action)
+                    agent.a_star_action = a_star_action
                 elif self.is_obstacle(x, y, q_learning=True, override_epsilon=0.015) or self.is_dyn_obstacle(x, y, agent):
                     raw_grid[r][c] = 1
 
@@ -628,37 +758,35 @@ class raw_env(SimpleEnv, EzPickle):
             for c in range(3, 6):
                 state.append(raw_grid[r][c])
         
-        # --- Surrounding 3x3 blocks: aggregate to 1 if >= 2 obstacles ---
+        # --- Surrounding 3x4 blocks: aggregate to 1 if >= 2 obstacles ---
         # Define regions:  top, left, right, bottom
-        surrounding_blocks = [
-            (6, 3, 9, 6),  # top
-            (3, 0, 6, 3),  # left
-            (3, 6, 6, 9),  # right
-            (0, 3, 3, 6),  # bottom
-        ]
+        surrounding_blocks = {
+            'top':    (6, 3, 9, 7),
+            'left':   (3, 0, 6, 4),
+            'right':  (3, 5, 6, 9),
+            'bottom': (0, 3, 3, 7),
+        }
 
-        for r_start, c_start, r_end, c_end in surrounding_blocks:
-            count = 0
-            for r in range(r_start, r_end):
-                for c in range(c_start, c_end):
-                    count += raw_grid[r][c]
-            state.append(1 if count >= 2 else 0)
 
+        for direction in ['top', 'left', 'right', 'bottom']:
+            r_start, c_start, r_end, c_end = surrounding_blocks[direction]
+            block = [raw_grid[r][c_start:c_end] for r in range(r_start, r_end)]
+            label = self.classify_region(block, direction)
+            state.append(label)
+        
         return tuple(state)
     
     def a_star_direction(self, agent, a_star_new):
-        if not a_star_new:
-            return 4  # wait
 
         agent_pos = np.array(agent.state.p_pos)
-        closest_point = min(a_star_new, key=lambda point: np.linalg.norm(np.array(point) - agent_pos))
-
-        dx = closest_point[0] - agent_pos[0]
-        dy = closest_point[1] - agent_pos[1]
-
-        # If already very close to the point, return wait
-        if np.linalg.norm([dx, dy]) < 0.01:
-            return 4
+        
+        if not a_star_new:
+            target = np.array(agent.goal_point)
+        else:
+            target = min(a_star_new, key=lambda point: np.linalg.norm(np.array(point) - agent_pos))
+        
+        dx = target[0] - agent_pos[0]
+        dy = target[1] - agent_pos[1]
 
         # Prioritize dominant direction
         if abs(dx) > abs(dy):
@@ -680,7 +808,7 @@ class raw_env(SimpleEnv, EzPickle):
         
         return (
             observation,
-            self._cumulative_rewards[agent],
+            agent_object.reward,
             self.terminations[agent],
             self.truncations[agent],
             self.infos[agent],
@@ -692,6 +820,9 @@ class raw_env(SimpleEnv, EzPickle):
         if seed is not None:
             self._seed(seed=seed)
         self.scenario.reset_world(self.world, self.np_random)
+        
+        all_poses = [entity.state.p_pos for entity in self.world.entities]
+        self.fixed_cam_range = np.max(np.abs(np.array(all_poses)))
 
         self.agents = self.possible_agents[:]
         self.rewards = {name: 0.0 for name in self.agents}
@@ -719,13 +850,17 @@ class raw_env(SimpleEnv, EzPickle):
             agent_object.a_star_new = a_star_path[2:] # remove first two elements
             agent_object.a_star_old = []
             agent_object.q_state = self.q_learning_state_space(agent_object, agent_object.a_star_new)
+            agent_object.reward = 0.0
             agent_object.movable = True
             agent_states[agent] = agent_object.q_state
             agent_observations[agent] = observation
             agent_object.controller_x = PID(setpoint=0)
             agent_object.controller_y = PID(setpoint=0)
             agent_object.terminated = False
-            agent_object.a_star_action.clear()
+            agent_object.a_star_action = None
+            agent_object.start_pos = np.array(agent_object.state.p_pos)
+            agent_object.trajectory = [tuple(agent_object.state.p_pos)] 
+            
         return agent_states, agent_observations
     
         
@@ -787,7 +922,16 @@ class raw_env(SimpleEnv, EzPickle):
     
     def update_a_star_paths(self, agent):
         epsilon = 25e-3
+        goal_epsilon = 0.09
         agent_pos = np.array(agent.state.p_pos)
+        goal_pos = np.array(agent.goal_point)
+
+        if np.linalg.norm(agent_pos - goal_pos) < goal_epsilon:
+            if agent.a_star_new:
+                agent.a_star_old.extend(agent.a_star_new)
+                agent.a_star_new.clear()
+                print(agent.name + " reached goal proximity — cleared remaining path.")
+            return True
 
         # Sort path points by distance (ascending) but prefer later ones in tie
         sorted_path = sorted(
@@ -809,6 +953,9 @@ class raw_env(SimpleEnv, EzPickle):
     
 
     def _execute_world_step(self):
+        # update q-state and a* direction before stepping the agents
+        for agent in self.world.agents:
+            agent.q_state = self.q_learning_state_space(agent, agent.a_star_new)
         # set action for each agent
         for i, agent in enumerate(self.world.agents):
             action = self.current_actions[i]
@@ -827,6 +974,8 @@ class raw_env(SimpleEnv, EzPickle):
 
         self.world.step()
 
+        for agent in self.world.agents:
+            agent.trajectory.append(tuple(agent.state.p_pos))
         global_reward = 0.0
         if self.local_ratio is not None:
             global_reward = float(self.scenario.global_reward(self.world))
@@ -866,26 +1015,15 @@ class raw_env(SimpleEnv, EzPickle):
             goal_point[0]=agent_x+gridsize
             goal_point[1]=agent_y   
             action_print = "right"
-        if action == 4: #wait
-            goal_point[0]=agent_x
-            goal_point[1]=agent_y
-            action_print = "wait"
         
-        if agent == None:
-            return goal_point
-        else:
-            #print(agent + ": Angesteuert wird Punkt: " + str(goal_point[0]) + ", " + str(goal_point[1]) + " . Von Punkt: "+str(agent_x) + " " + str(agent_y) + " . Aktion: " + action_print)
-            return goal_point
+        return goal_point
 
     def get_cont_action(self, observation, dimension, discrete_action, agent):
         agent_object = self.world.agents[self._index_map[agent]]
-        agent_object.last_action = discrete_action
+        agent_object.action_history.append(discrete_action)
+        if len(agent_object.action_history) > 2:
+            agent_object.action_history.pop(0)
         next_point = self.get_next_point(observation[0], observation[1], discrete_action, agent)
-        
-        if discrete_action == 4:  # WAIT
-            agent_object.controller_x.reset()
-            agent_object.controller_y.reset()
-            return np.zeros(dimension * 2 + 1)
         
         agent_object.controller_x.setpoint = next_point[0]
         agent_object.controller_y.setpoint = next_point[1]
@@ -895,12 +1033,12 @@ class raw_env(SimpleEnv, EzPickle):
         v_x = agent_object.controller_x(observation[0])
         v_y = agent_object.controller_y(observation[1])
         
+        v_x = v_x * 1.25
+        v_y = v_y * 1.25
+        
         action = np.zeros(dimension * 2 + 1)
         action[1] = -v_x
-        action[2] = 0
         action[3] = -v_y
-        action[4] = 0
-        #print(agent + ": vx: " + str(v_x) + " . vy: " + Fstr(v_y)) 
         return action
 
 
@@ -928,13 +1066,12 @@ class Scenario(BaseScenario):
             agent.name = f"{base_name}_{base_index}"
             agent.collide = True
             agent.silent = True
-            agent.size = 0.05
+            agent.size = 0.027
             agent.accel = 4.0
             agent.max_speed = 1.3
             agent.damping = 0.5
         # add landmarks
         world.landmarks = [RectLandmark() for i in range(num_landmarks)]
-        world.landmarks.append(RandomLandmark())
         for i, landmark in enumerate(world.landmarks):
             landmark.name = "landmark %d" % i
             landmark.collide = True
@@ -947,13 +1084,26 @@ class Scenario(BaseScenario):
 
     def reset_world(self, world, np_random):
         colors = [
-            [0.0, 1.0, 0.0],  # green
-            [0.0, 0.0, 1.0],  # blue
-            [1.0, 1.0, 0.0],  # yellow
-            [1.0, 0.5, 0.0],  # orange
-            [0.5, 0.0, 0.5],  # purple
-            [0.0, 1.0, 1.0],  # cyan
-            [1.0, 0.0, 1.0],  # magenta
+        [0.0, 1.0, 0.0],   # green
+        [0.0, 0.0, 1.0],   # blue
+        [1.0, 1.0, 0.0],   # yellow
+        [1.0, 0.5, 0.0],   # orange
+        [0.5, 0.0, 0.5],   # purple
+        [0.0, 1.0, 1.0],   # cyan
+        [1.0, 0.0, 1.0],   # magenta
+        [0.5, 0.5, 0.0],   # olive
+        [0.0, 0.5, 0.5],   # teal
+        [0.5, 0.5, 1.0],   # light blue
+        [1.0, 0.8, 0.8],   # pinkish
+        [0.7, 0.7, 0.7],   # light gray
+        [0.3, 0.3, 0.3],   # dark gray
+        [1.0, 0.0, 0.0],   # red
+        [0.8, 0.6, 0.7],   # mauve
+        [0.6, 0.4, 0.2],   # brown
+        [0.2, 0.6, 0.2],   # forest green
+        [0.2, 0.2, 0.6],   # deep blue
+        [0.9, 0.9, 0.1],   # lemon
+        [0.6, 0.2, 0.8]   # violet
         ]
         
         # set states for landmarks
@@ -968,11 +1118,6 @@ class Scenario(BaseScenario):
         world.landmarks[2].state.p_pos= np.array([0.25, -0.3])
         world.landmarks[3].state.p_pos= np.array([0.25, 0.3])
         
-        # set random intial state for landmark
-        world.landmarks[4].state.p_pos= np_random.uniform(-1, +1, world.dim_p)
-        world.landmarks[4].color = np.array([1.0, 0.0, 0.0])
-        world.landmarks[4].size = np.array([0.15, 0.15])
-        
         # random properties for agents
         for i, agent in enumerate(world.agents):
             agent.color = (
@@ -983,7 +1128,7 @@ class Scenario(BaseScenario):
             agent.state.p_vel = np.zeros(world.dim_p)
             
             while True:
-                pos = np_random.uniform(-1.0, +1.0, world.dim_p)
+                pos = np_random.uniform(-0.8, +0.8, world.dim_p)
                 if self.is_in_landmark(world, pos[0], pos[1]):
                     continue
                 
@@ -1005,6 +1150,13 @@ class Scenario(BaseScenario):
                 pos = np_random.uniform(-0.6, +0.6, world.dim_p)
                 if self.is_in_landmark(world, pos[0], pos[1]):
                     continue
+                
+                # check minimum distance
+                start_pos = agent.state.p_pos
+                distance = np.linalg.norm(pos - start_pos)
+                if distance < 0.25:
+                    continue
+                
                 goal_collision = any(
                     hasattr(other, 'goal_point') and isinstance(other.goal_point, list) and len(other.goal_point) == 2 and
                     np.linalg.norm(np.array(pos) - np.array(other.goal_point)) < 0.15
@@ -1044,36 +1196,36 @@ class Scenario(BaseScenario):
         return np.any(np.abs(agent.state.p_pos) > bound)
     
     def is_goal(self, agent):
+        epsilon_goal = 6e-3
         delta_pos = agent.state.p_pos - agent.goal_point
         dist = np.sqrt(np.sum(np.square(delta_pos)))
-        dist_min = agent.size + self.epsilon_runtime
+        dist_min = agent.size + epsilon_goal
         return True if dist < dist_min else False  
             
     
     def reward(self, agent, world):
         reward = 0
+        
         for landmark in world.landmarks:
             if landmark.is_collision(agent):
-                reward -= 1    # collision
+                reward -= 24    # collision
                     
         for other_agent in world.agents:
             if self.is_collision(agent, other_agent):
                 if other_agent == agent:
                     continue
                 else:
-                    reward -= 1    # collision
+                    reward -= 24    # collision
         
         if self.is_out_of_bounds(agent):
-            reward -= 1         # collision
-        
-        if agent.a_star_action:
-            if agent.last_action == agent.a_star_action[0]:
-                reward += 2     # choose a-star
-            agent.a_star_action.pop(0)
-        
-               
-        reward -= 0.01          # time penalty
-                
+            reward -= 24            # collision
+            
+        if agent.a_star_action is not None and agent.action_history[-1] == agent.a_star_action:
+                reward += 1         # choose a-star      
+    
+        reward -= 1.2          # time penalty
+
+        agent.reward = reward
         return reward
 
     def agents(self, world):

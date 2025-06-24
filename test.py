@@ -7,7 +7,7 @@ import hashlib
 import os
 import matplotlib.pyplot as plt
 
-def stable_hash(state, num_states=5_000_000):
+def stable_hash(state, num_states=1_000_000):
     state = np.array(state, dtype=np.int32)
     state_bytes = state.tobytes()
     return int(hashlib.sha256(state_bytes).hexdigest(), 16) % num_states
@@ -40,6 +40,7 @@ def print_state(state, size=9):
     print(f"Left: {left}       Right: {right}")
     print()
     print(f"  Bottom: {bottom}")
+
     print("==============================\n")
 
 
@@ -86,31 +87,29 @@ class ReplayBuffer:
         return states, actions, rewards, next_states, terminates
     
 
-def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, checkpoint_freq=1000):
+def train(seed = None, kappa=1, T=100000, N=10, batchsize = 32, p = 0, c=0.1, checkpoint_freq=5000):
     if seed is not None:
         np.random.seed(seed)
     
-    env = raw_env(render_mode="human")
+    env = raw_env(render_mode=None)
     agent_states, agent_observations = env.reset(seed=42)
     
-    action_space_num = 5
-    gamma = 0.99
+    action_space_num = 4
+    gamma = 0.95
     
-    num_states = 5_000_000
+    num_states = 1_000_000
     replay_buffer = ReplayBuffer(max_size=70000, state_dim=1, action_dim=1)
     
     def get_index(state):
         return stable_hash(state) % num_states
     
-    def epsilon_greedy_policy(state, Q, episode, epsilon_min = 0.1, epsilon_decay = 0.99):
+    def epsilon_greedy_policy(state, Q):
         idx = stable_hash(state) % num_states
 
-        if episode <= 10:
-            epsilon = 1.0
-        else:
-            epsilon = max(epsilon_min, epsilon_decay ** (episode - 10)) 
+        # Per-state epsilon: higher for less-visited states
+        epsilon = 1.0 / np.sqrt(max(visit_counts[idx], 1))
 
-        if random.uniform(0, 1) < epsilon:
+        if random.random() < epsilon:
             return random.randint(0, action_space_num - 1)
         else:
             return int(np.argmax(Q[idx]))
@@ -118,10 +117,11 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
         
     if os.path.exists("checkpoint.pkl"):
         with open("checkpoint.pkl", "rb") as f:
-            Q, TD_error_per_episode, reward_per_episode, step_start, episode = pickle.load(f)
+            Q, TD_error_per_episode, reward_per_episode, step_start, episode, visit_counts = pickle.load(f)
         print(f"checkpoint loaded. Start at step {step_start}, episode {episode}")
     else:
         Q = np.zeros((num_states, action_space_num), dtype=np.float32)
+        visit_counts = np.zeros(num_states, dtype=np.int32)
         TD_error_per_episode = []
         reward_per_episode = []
         step_start = 0
@@ -144,7 +144,7 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                 if agent_done[agent]:
                     action = None
                 else:
-                    discrete_action = epsilon_greedy_policy(agent_states[agent], Q, episode)
+                    discrete_action = epsilon_greedy_policy(agent_states[agent], Q)
                     action = env.get_cont_action(observation, env.world.dim_p, discrete_action, agent)
                     agent_actions[agent] = discrete_action
                 env.step(action)
@@ -159,7 +159,8 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                 agent_observations[agent] = observation 
                 if termination or truncation:
                     agent_done[agent] = True
-                replay_buffer.store_transition(agent_states[agent], agent_actions[agent], reward,next_state, agent_done[agent])
+                done_flag = termination and not env.scenario.is_goal(env.world.agents[env._index_map[agent]])
+                replay_buffer.store_transition(agent_states[agent], agent_actions[agent], reward, next_state, done_flag)
                 agent_states[agent] = next_state
                 env.next_agent()
                 
@@ -170,6 +171,8 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
             if train:
                 states, actions, rewards, next_states, terminates = replay_buffer.sample_buffer(batchsize)
                 s_idx = np.array([get_index(s) for s in states])
+                for idx in s_idx:
+                    visit_counts[idx] += 1
                 s_next_idx = np.array([get_index(s_next) for s_next in next_states])
                 a = np.array(actions)
                 r = np.array(rewards)
@@ -188,7 +191,8 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
             if step%episode_length == 0 and step != 0 and episode>10:
                 TD_error_per_episode.append(TD_error_episode/len(env.agents))
                 TD_error_episode = 0
-                episode_rewards = {agent: 0.0 for agent in env.agents}
+                reward_episode = 0
+                evaluation_steps = 0
                 K = 1
                 for _ in range(K):
                     agent_states, agent_observations = env.reset(seed=seed)
@@ -223,18 +227,17 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
                             if termination or truncation:
                                 agent_done[agent] = True
                             agent_states[agent] = state
-                            episode_rewards[agent] += reward
+                            reward_episode += reward
+                            evaluation_steps += 1
                             env.next_agent()
                 
-                total_episode_reward = sum(episode_rewards.values())
-                avg_episode_reward = total_episode_reward / len(env.agents)
-                reward_per_episode.append(avg_episode_reward)       
+                reward_per_episode.append(reward_episode/evaluation_steps)       
                 agent_states, agent_observations= env.reset()
                 agent_done = {agent: False for agent in env.agents}
                     
             if step % checkpoint_freq == 0 and step > 0:
                 with open("checkpoint.pkl", "wb") as f:
-                    pickle.dump((Q, TD_error_per_episode, reward_per_episode, step, episode), f)
+                    pickle.dump((Q, TD_error_per_episode, reward_per_episode, step, episode, visit_counts), f)
                 print(f"checkpoint saved at step {step}")
                 
                 fig, axs = plt.subplots(2, 1, figsize=(8, 6))
@@ -262,19 +265,19 @@ def train(seed = None, kappa=1, T=150000, N=10, batchsize = 32, p = 0, c=0.1, ch
     finally:
         print("Saving final training results ...")
         with open("training_data.pkl", "wb") as f:
-            pickle.dump((Q, TD_error_per_episode, reward_per_episode), f)
+            pickle.dump((Q, TD_error_per_episode, reward_per_episode, visit_counts), f)
         print("Succesfully saved training results.")
 
 
         with open("checkpoint.pkl", "wb") as f:
-            pickle.dump((Q, TD_error_per_episode, reward_per_episode, step, episode), f)
+            pickle.dump((Q, TD_error_per_episode, reward_per_episode, step, episode, visit_counts), f)
 
         env.close()
             
-    return Q, TD_error_per_episode, reward_per_episode
+    return Q, TD_error_per_episode, reward_per_episode, visit_counts
         
-Q, TD_error_per_episode, reward_per_episode =train()
+Q, TD_error_per_episode, reward_per_episode, visit_counts =train()
 with open("training_data.pkl", "wb") as f:
-    pickle.dump((Q, TD_error_per_episode, reward_per_episode), f)
+    pickle.dump((Q, TD_error_per_episode, reward_per_episode, visit_counts), f)
 
 print("Trainingsergebnisse gespeichert.")
