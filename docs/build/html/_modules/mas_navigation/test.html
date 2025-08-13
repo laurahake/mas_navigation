@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mas_navigation.test &#8212; Multi-Agent Path Planning and Navigation with A* and Q-Learning 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for mas_navigation.test</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">.custom_environment</span> <span class="kn">import</span> <span class="n">raw_env</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">simple_pid</span> <span class="kn">import</span> <span class="n">PID</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<div class="viewcode-block" id="stable_hash">
+<a class="viewcode-back" href="../../api/mas_navigation.test.html#mas_navigation.test.stable_hash">[docs]</a>
+<span class="k">def</span> <span class="nf">stable_hash</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">num_states</span><span class="o">=</span><span class="mi">1_000_000</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute a deterministic hash value for a discrete Q-learning state.</span>
+
+<span class="sd">    The state is first converted to a NumPy int32 array, then serialized</span>
+<span class="sd">    to bytes, and finally hashed using SHA-256. The result is mapped</span>
+<span class="sd">    into the range [0, num_states) via modulo.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state (array-like): Discrete state representation.</span>
+<span class="sd">        num_states (int): Upper bound for hash mapping.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        int: Stable integer hash in [0, num_states).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">state_bytes</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">state_bytes</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="mi">16</span><span class="p">)</span> <span class="o">%</span> <span class="n">num_states</span></div>
+
+
+
+<div class="viewcode-block" id="print_state">
+<a class="viewcode-back" href="../../api/mas_navigation.test.html#mas_navigation.test.print_state">[docs]</a>
+<span class="k">def</span> <span class="nf">print_state</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">9</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print the compact Q-state representation.</span>
+
+<span class="sd">    The layout shows a 3x3 center region and four aggregated directional regions</span>
+<span class="sd">    in the order top, left, right, bottom.</span>
+<span class="sd">    The center cell represents the A* action direction.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state (Sequence[int]): Encoded state. First 9 entries are the center 3×3 region.</span>
+<span class="sd">            Entries 9..12 encode the four aggregated regions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== Q-State Representation ===&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Extract segments</span>
+    <span class="n">center</span> <span class="o">=</span> <span class="n">state</span><span class="p">[:</span><span class="mi">9</span><span class="p">]</span>  <span class="c1"># 3x3 fine grid</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span>
+    <span class="n">left</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span>
+    <span class="n">bottom</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span>
+    
+    <span class="c1"># Print layout:</span>
+    <span class="c1">#     [ T ]</span>
+    <span class="c1"># [L] [Center 3x3] [R]</span>
+    <span class="c1">#     [ B ]</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Top: </span><span class="si">{</span><span class="n">top</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Center Grid:&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">center</span><span class="p">[</span><span class="n">r</span><span class="o">*</span><span class="mi">3</span><span class="p">:(</span><span class="n">r</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">3</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;        &quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s2">2</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">row</span><span class="p">))</span>
+        
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Left: </span><span class="si">{</span><span class="n">left</span><span class="si">}</span><span class="s2">       Right: </span><span class="si">{</span><span class="n">right</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Bottom: </span><span class="si">{</span><span class="n">bottom</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;==============================</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ReplayBuffer">
+<a class="viewcode-back" href="../../api/mas_navigation.test.html#mas_navigation.test.ReplayBuffer">[docs]</a>
+<span class="k">class</span> <span class="nc">ReplayBuffer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fixed-size FIFO replay buffer for storing Q-learning transitions.</span>
+
+<span class="sd">    Stores per-step tuples of (state, action, reward, next_state, terminate)</span>
+<span class="sd">    for experience replay training.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_size</span><span class="p">,</span> <span class="n">state_dim</span><span class="p">,</span> <span class="n">action_dim</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize an empty replay buffer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            max_size (int): Maximum number of stored transitions.</span>
+<span class="sd">            state_dim (int): Dimension of the state vector.</span>
+<span class="sd">            action_dim (int): Dimension of the action vector.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mem_size</span> <span class="o">=</span> <span class="n">max_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mem_counter</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_memory</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_state_memory</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_memory</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reward_memory</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">terminal_memory</span> <span class="o">=</span> <span class="p">[]</span>
+        
+<div class="viewcode-block" id="ReplayBuffer.store_transition">
+<a class="viewcode-back" href="../../api/mas_navigation.test.html#mas_navigation.test.ReplayBuffer.store_transition">[docs]</a>
+    <span class="k">def</span> <span class="nf">store_transition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">next_state</span><span class="p">,</span> <span class="n">terminate</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Store a single transition in the buffer.</span>
+
+<span class="sd">        If the buffer is full, the oldest entry is overwritten (FIFO).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            state: Current state.</span>
+<span class="sd">            action: Action taken in the current state.</span>
+<span class="sd">            reward (float): Immediate reward received.</span>
+<span class="sd">            next_state: Resulting state after taking the action.</span>
+<span class="sd">            terminate (bool): Whether the episode ended at this step.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mem_counter</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">mem_size</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_memory</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">new_state_memory</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">next_state</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">action_memory</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reward_memory</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reward</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">terminal_memory</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">terminate</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Wenn der Speicher voll ist, ersetze ältere Einträge (FIFO-Prinzip)</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mem_counter</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">mem_size</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_memory</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">new_state_memory</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">next_state</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">action_memory</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">action</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reward_memory</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">reward</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">terminal_memory</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">terminate</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mem_counter</span> <span class="o">+=</span> <span class="mi">1</span> </div>
+
+        
+<div class="viewcode-block" id="ReplayBuffer.sample_buffer">
+<a class="viewcode-back" href="../../api/mas_navigation.test.html#mas_navigation.test.ReplayBuffer.sample_buffer">[docs]</a>
+    <span class="k">def</span> <span class="nf">sample_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batchsize</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sample a random batch of transitions from the buffer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            batchsize (int): Number of transitions to sample.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            tuple: (states, actions, rewards, next_states, terminates)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="n">max_mem</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mem_counter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mem_size</span><span class="p">)</span> 
+        <span class="n">batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">max_mem</span><span class="p">,</span> <span class="n">batchsize</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">state_memory</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">next_states</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">new_state_memory</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">action_memory</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">rewards</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">reward_memory</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">terminates</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">terminal_memory</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        
+        <span class="k">return</span> <span class="n">states</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">rewards</span><span class="p">,</span> <span class="n">next_states</span><span class="p">,</span> <span class="n">terminates</span></div>
+</div>
+
+    
+
+<div class="viewcode-block" id="train">
+<a class="viewcode-back" href="../../api/mas_navigation.test.html#mas_navigation.test.train">[docs]</a>
+<span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="n">seed</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">batchsize</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">checkpoint_freq</span><span class="o">=</span><span class="mi">5000</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Train a multi-agent Q-learning policy in the custom environment.</span>
+
+<span class="sd">    Uses an epsilon-greedy policy with per-state adaptive epsilon based</span>
+<span class="sd">    on visit counts, and stores transitions in a replay buffer for</span>
+<span class="sd">    batch updates. Supports resuming from a saved checkpoint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        seed (int | None): Random seed for reproducibility.</span>
+<span class="sd">        kappa (float): (Unused) Scaling factor placeholder.</span>
+<span class="sd">        T (int): Total number of environment steps to run.</span>
+<span class="sd">        N (int): Normalization constant for stepsize decay.</span>
+<span class="sd">        batchsize (int): Replay buffer sample size for updates.</span>
+<span class="sd">        p (float): Exponent for stepsize decay schedule.</span>
+<span class="sd">        c (float): Initial stepsize coefficient.</span>
+<span class="sd">        checkpoint_freq (int): Steps between checkpoint saves.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: (Q, TD_error_per_episode, reward_per_episode, visit_counts)</span>
+<span class="sd">            - Q (np.ndarray): Learned Q-table.</span>
+<span class="sd">            - TD_error_per_episode (list[float]): Mean TD error per episode.</span>
+<span class="sd">            - reward_per_episode (list[float]): Mean reward per episode.</span>
+<span class="sd">            - visit_counts (np.ndarray): Number of visits per hashed state.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    
+    <span class="n">env</span> <span class="o">=</span> <span class="n">raw_env</span><span class="p">(</span><span class="n">render_mode</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">agent_states</span><span class="p">,</span> <span class="n">agent_observations</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+    
+    <span class="n">action_space_num</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">gamma</span> <span class="o">=</span> <span class="mf">0.95</span>
+    
+    <span class="n">num_states</span> <span class="o">=</span> <span class="mi">1_000_000</span>
+    <span class="n">replay_buffer</span> <span class="o">=</span> <span class="n">ReplayBuffer</span><span class="p">(</span><span class="n">max_size</span><span class="o">=</span><span class="mi">70000</span><span class="p">,</span> <span class="n">state_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">action_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">get_index</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">stable_hash</span><span class="p">(</span><span class="n">state</span><span class="p">)</span> <span class="o">%</span> <span class="n">num_states</span>
+    
+    <span class="k">def</span> <span class="nf">epsilon_greedy_policy</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">Q</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">stable_hash</span><span class="p">(</span><span class="n">state</span><span class="p">)</span> <span class="o">%</span> <span class="n">num_states</span>
+
+        <span class="c1"># Per-state epsilon: higher for less-visited states</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">visit_counts</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">epsilon</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">action_space_num</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">Q</span><span class="p">[</span><span class="n">idx</span><span class="p">]))</span>
+        
+        
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;checkpoint.pkl&quot;</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;checkpoint.pkl&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">Q</span><span class="p">,</span> <span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">step_start</span><span class="p">,</span> <span class="n">episode</span><span class="p">,</span> <span class="n">visit_counts</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;checkpoint loaded. Start at step </span><span class="si">{</span><span class="n">step_start</span><span class="si">}</span><span class="s2">, episode </span><span class="si">{</span><span class="n">episode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">Q</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_states</span><span class="p">,</span> <span class="n">action_space_num</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">visit_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_states</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">TD_error_per_episode</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">reward_per_episode</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">step_start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">episode</span> <span class="o">=</span> <span class="mi">1</span>
+    
+    <span class="n">episode_length</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">TD_error_episode</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">train</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">stepsize</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">/</span><span class="p">((</span><span class="n">step</span><span class="o">/</span><span class="n">N</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">T</span><span class="p">)]</span>
+    <span class="n">agent_done</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent</span><span class="p">:</span> <span class="kc">False</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">}</span>
+
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">step_start</span><span class="p">,</span> <span class="n">T</span><span class="p">):</span>
+            <span class="n">agent_actions</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">env</span><span class="o">.</span><span class="n">agent_selection</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            
+            <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+                <span class="n">observation</span> <span class="o">=</span> <span class="n">agent_observations</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]:</span>
+                    <span class="n">action</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">discrete_action</span> <span class="o">=</span> <span class="n">epsilon_greedy_policy</span><span class="p">(</span><span class="n">agent_states</span><span class="p">[</span><span class="n">agent</span><span class="p">],</span> <span class="n">Q</span><span class="p">)</span>
+                    <span class="n">action</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get_cont_action</span><span class="p">(</span><span class="n">observation</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">dim_p</span><span class="p">,</span> <span class="n">discrete_action</span><span class="p">,</span> <span class="n">agent</span><span class="p">)</span>
+                    <span class="n">agent_actions</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">=</span> <span class="n">discrete_action</span>
+                <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            
+            <span class="n">env</span><span class="o">.</span><span class="n">agent_selection</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]:</span>
+                    <span class="n">env</span><span class="o">.</span><span class="n">next_agent</span><span class="p">()</span>
+                    <span class="k">continue</span>
+                
+                <span class="n">observation</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">termination</span><span class="p">,</span> <span class="n">truncation</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">next_state</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
+                <span class="n">agent_observations</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">=</span> <span class="n">observation</span> 
+                <span class="k">if</span> <span class="n">termination</span> <span class="ow">or</span> <span class="n">truncation</span><span class="p">:</span>
+                    <span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">done_flag</span> <span class="o">=</span> <span class="n">termination</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">env</span><span class="o">.</span><span class="n">scenario</span><span class="o">.</span><span class="n">is_goal</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">agents</span><span class="p">[</span><span class="n">env</span><span class="o">.</span><span class="n">_index_map</span><span class="p">[</span><span class="n">agent</span><span class="p">]])</span>
+                <span class="n">replay_buffer</span><span class="o">.</span><span class="n">store_transition</span><span class="p">(</span><span class="n">agent_states</span><span class="p">[</span><span class="n">agent</span><span class="p">],</span> <span class="n">agent_actions</span><span class="p">[</span><span class="n">agent</span><span class="p">],</span> <span class="n">reward</span><span class="p">,</span> <span class="n">next_state</span><span class="p">,</span> <span class="n">done_flag</span><span class="p">)</span>
+                <span class="n">agent_states</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">=</span> <span class="n">next_state</span>
+                <span class="n">env</span><span class="o">.</span><span class="n">next_agent</span><span class="p">()</span>
+                
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">train</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">replay_buffer</span><span class="o">.</span><span class="n">mem_counter</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="o">*</span><span class="n">batchsize</span><span class="p">:</span>
+                    <span class="n">train</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">train</span><span class="p">:</span>
+                <span class="n">states</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">rewards</span><span class="p">,</span> <span class="n">next_states</span><span class="p">,</span> <span class="n">terminates</span> <span class="o">=</span> <span class="n">replay_buffer</span><span class="o">.</span><span class="n">sample_buffer</span><span class="p">(</span><span class="n">batchsize</span><span class="p">)</span>
+                <span class="n">s_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">get_index</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">states</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">s_idx</span><span class="p">:</span>
+                    <span class="n">visit_counts</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">s_next_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">get_index</span><span class="p">(</span><span class="n">s_next</span><span class="p">)</span> <span class="k">for</span> <span class="n">s_next</span> <span class="ow">in</span> <span class="n">next_states</span><span class="p">])</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">actions</span><span class="p">)</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rewards</span><span class="p">)</span>
+                <span class="n">term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">terminates</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="n">Q_next_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Q</span><span class="p">[</span><span class="n">s_next_idx</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">targets</span> <span class="o">=</span> <span class="n">r</span> <span class="o">+</span> <span class="n">gamma</span> <span class="o">*</span> <span class="n">Q_next_max</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">term</span><span class="p">)</span>
+                <span class="n">td_errors</span> <span class="o">=</span> <span class="n">Q</span><span class="p">[</span><span class="n">s_idx</span><span class="p">,</span> <span class="n">a</span><span class="p">]</span> <span class="o">-</span> <span class="n">targets</span>
+                <span class="n">TD_error_episode</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">td_errors</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">Q</span><span class="p">[</span><span class="n">s_idx</span><span class="p">,</span> <span class="n">a</span><span class="p">]</span> <span class="o">-=</span> <span class="n">stepsize</span><span class="p">[</span><span class="n">step</span><span class="p">]</span> <span class="o">*</span> <span class="n">td_errors</span>
+                
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">agent_done</span><span class="p">):</span>
+                <span class="n">agent_states</span><span class="p">,</span> <span class="n">agent_observations</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+                <span class="n">agent_done</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent</span><span class="p">:</span> <span class="kc">False</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">}</span>
+                <span class="n">episode</span> <span class="o">+=</span><span class="mi">1</span>
+
+            <span class="k">if</span> <span class="n">step</span><span class="o">%</span><span class="n">episode_length</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">step</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">episode</span><span class="o">&gt;</span><span class="mi">10</span><span class="p">:</span>
+                <span class="n">TD_error_per_episode</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TD_error_episode</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">))</span>
+                <span class="n">TD_error_episode</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">reward_episode</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">evaluation_steps</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">K</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">K</span><span class="p">):</span>
+                    <span class="n">agent_states</span><span class="p">,</span> <span class="n">agent_observations</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+                    <span class="n">agent_done</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent</span><span class="p">:</span> <span class="kc">False</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">}</span>
+
+                    <span class="k">while</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">agent_done</span><span class="p">):</span>
+                        <span class="n">env</span><span class="o">.</span><span class="n">agent_selection</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]:</span>
+                                <span class="n">action</span> <span class="o">=</span> <span class="kc">None</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">state</span> <span class="o">=</span> <span class="n">agent_states</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span>
+                                <span class="n">observation</span> <span class="o">=</span> <span class="n">agent_observations</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span>
+                                <span class="n">idx</span> <span class="o">=</span> <span class="n">get_index</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+                                <span class="c1"># avoid bias if all Q values are 0</span>
+                                <span class="n">q_vals</span> <span class="o">=</span> <span class="n">Q</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                                <span class="n">max_q</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">q_vals</span><span class="p">)</span>
+                                <span class="n">best_actions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">q_vals</span> <span class="o">==</span> <span class="n">max_q</span><span class="p">)</span>
+                                <span class="n">discrete_action</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">best_actions</span><span class="p">)</span>
+                                
+                                <span class="n">action</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get_cont_action</span><span class="p">(</span><span class="n">observation</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">dim_p</span><span class="p">,</span> <span class="n">discrete_action</span><span class="p">,</span> <span class="n">agent</span><span class="p">)</span>
+                            <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+                            
+                        <span class="n">env</span><span class="o">.</span><span class="n">agent_selection</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                                <span class="n">env</span><span class="o">.</span><span class="n">next_agent</span><span class="p">()</span>
+                                <span class="k">continue</span>
+                            
+                            <span class="n">observation</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">termination</span><span class="p">,</span> <span class="n">truncation</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">state</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
+                            <span class="n">agent_observations</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">=</span> <span class="n">observation</span>
+                            <span class="k">if</span> <span class="n">termination</span> <span class="ow">or</span> <span class="n">truncation</span><span class="p">:</span>
+                                <span class="n">agent_done</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                            <span class="n">agent_states</span><span class="p">[</span><span class="n">agent</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+                            <span class="n">reward_episode</span> <span class="o">+=</span> <span class="n">reward</span>
+                            <span class="n">evaluation_steps</span> <span class="o">+=</span> <span class="mi">1</span>
+                            <span class="n">env</span><span class="o">.</span><span class="n">next_agent</span><span class="p">()</span>
+                
+                <span class="n">reward_per_episode</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reward_episode</span><span class="o">/</span><span class="n">evaluation_steps</span><span class="p">)</span>       
+                <span class="n">agent_states</span><span class="p">,</span> <span class="n">agent_observations</span><span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+                <span class="n">agent_done</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent</span><span class="p">:</span> <span class="kc">False</span> <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">agents</span><span class="p">}</span>
+                    
+            <span class="k">if</span> <span class="n">step</span> <span class="o">%</span> <span class="n">checkpoint_freq</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">step</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;checkpoint.pkl&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">((</span><span class="n">Q</span><span class="p">,</span> <span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">episode</span><span class="p">,</span> <span class="n">visit_counts</span><span class="p">),</span> <span class="n">f</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;checkpoint saved at step </span><span class="si">{</span><span class="n">step</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                
+                <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+
+                <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;TD Error&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Average absolute Bellman error per episode per agent&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Episode&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;TD Error&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Reward&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;orange&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Average reward per episode per agent&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Episode&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Reward&quot;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+                <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;training_progress.png&quot;</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step </span><span class="si">{</span><span class="n">step</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Saving final training results ...&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;training_data.pkl&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">((</span><span class="n">Q</span><span class="p">,</span> <span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">visit_counts</span><span class="p">),</span> <span class="n">f</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Succesfully saved training results.&quot;</span><span class="p">)</span>
+
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;checkpoint.pkl&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">((</span><span class="n">Q</span><span class="p">,</span> <span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">episode</span><span class="p">,</span> <span class="n">visit_counts</span><span class="p">),</span> <span class="n">f</span><span class="p">)</span>
+
+        <span class="n">env</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            
+    <span class="k">return</span> <span class="n">Q</span><span class="p">,</span> <span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">visit_counts</span></div>
+
+        
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">Q</span><span class="p">,</span> <span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">visit_counts</span> <span class="o">=</span> <span class="n">train</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;training_data.pkl&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">((</span><span class="n">Q</span><span class="p">,</span> <span class="n">TD_error_per_episode</span><span class="p">,</span> <span class="n">reward_per_episode</span><span class="p">,</span> <span class="n">visit_counts</span><span class="p">),</span> <span class="n">f</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Trainingsergebnisse gespeichert.&quot;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Multi-Agent Path Planning and Navigation with A* and Q-Learning</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mas_navigation.custom_environment.html">mas_navigation.custom_environment module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mas_navigation.node_class.html">mas_navigation.node_class module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mas_navigation.test.html">mas_navigation.test module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Laura Hake.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

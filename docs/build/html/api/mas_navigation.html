@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>mas_navigation package &#8212; Multi-Agent Path Planning and Navigation with A* and Q-Learning 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-mas_navigation">
+<span id="mas-navigation-package"></span><h1>mas_navigation package<a class="headerlink" href="#module-mas_navigation" title="Link to this heading">¶</a></h1>
+<p>Multi-Agent Navigation Environment for reinforcement learning research.</p>
+<p>This package provides:
+- A custom PettingZoo environment for multi-agent navigation with obstacles
+- A Node class for pathfinding
+- A test file for training a Q-Learning policy using the environment</p>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.custom_environment.html">mas_navigation.custom_environment module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent"><code class="docutils literal notranslate"><span class="pre">Agent</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.a_star_old"><code class="docutils literal notranslate"><span class="pre">Agent.a_star_old</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.a_star_new"><code class="docutils literal notranslate"><span class="pre">Agent.a_star_new</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.goal_point"><code class="docutils literal notranslate"><span class="pre">Agent.goal_point</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.q_state"><code class="docutils literal notranslate"><span class="pre">Agent.q_state</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.controller_x"><code class="docutils literal notranslate"><span class="pre">Agent.controller_x</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.controller_y"><code class="docutils literal notranslate"><span class="pre">Agent.controller_y</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.terminated"><code class="docutils literal notranslate"><span class="pre">Agent.terminated</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.a_star_action"><code class="docutils literal notranslate"><span class="pre">Agent.a_star_action</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.action_history"><code class="docutils literal notranslate"><span class="pre">Agent.action_history</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Agent.reward"><code class="docutils literal notranslate"><span class="pre">Agent.reward</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Landmark"><code class="docutils literal notranslate"><span class="pre">Landmark</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Landmark.is_collision"><code class="docutils literal notranslate"><span class="pre">Landmark.is_collision()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.RandomLandmark"><code class="docutils literal notranslate"><span class="pre">RandomLandmark</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.RandomLandmark.get_distance"><code class="docutils literal notranslate"><span class="pre">RandomLandmark.get_distance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.RandomLandmark.is_collision"><code class="docutils literal notranslate"><span class="pre">RandomLandmark.is_collision()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.RectLandmark"><code class="docutils literal notranslate"><span class="pre">RectLandmark</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.RectLandmark.is_collision"><code class="docutils literal notranslate"><span class="pre">RectLandmark.is_collision()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario"><code class="docutils literal notranslate"><span class="pre">Scenario</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.agents"><code class="docutils literal notranslate"><span class="pre">Scenario.agents()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.is_collision"><code class="docutils literal notranslate"><span class="pre">Scenario.is_collision()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.is_goal"><code class="docutils literal notranslate"><span class="pre">Scenario.is_goal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.is_in_landmark"><code class="docutils literal notranslate"><span class="pre">Scenario.is_in_landmark()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.is_out_of_bounds"><code class="docutils literal notranslate"><span class="pre">Scenario.is_out_of_bounds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.is_termination"><code class="docutils literal notranslate"><span class="pre">Scenario.is_termination()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.make_world"><code class="docutils literal notranslate"><span class="pre">Scenario.make_world()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.observation"><code class="docutils literal notranslate"><span class="pre">Scenario.observation()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.reset_world"><code class="docutils literal notranslate"><span class="pre">Scenario.reset_world()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.Scenario.reward"><code class="docutils literal notranslate"><span class="pre">Scenario.reward()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.World"><code class="docutils literal notranslate"><span class="pre">World</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.World.apply_action_force"><code class="docutils literal notranslate"><span class="pre">World.apply_action_force()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.World.apply_environment_force"><code class="docutils literal notranslate"><span class="pre">World.apply_environment_force()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.World.get_collision_force"><code class="docutils literal notranslate"><span class="pre">World.get_collision_force()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.World.integrate_state"><code class="docutils literal notranslate"><span class="pre">World.integrate_state()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.print_state"><code class="docutils literal notranslate"><span class="pre">print_state()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env"><code class="docutils literal notranslate"><span class="pre">raw_env</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.A_star"><code class="docutils literal notranslate"><span class="pre">raw_env.A_star()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.a_star_direction"><code class="docutils literal notranslate"><span class="pre">raw_env.a_star_direction()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.classify_region"><code class="docutils literal notranslate"><span class="pre">raw_env.classify_region()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.discrete"><code class="docutils literal notranslate"><span class="pre">raw_env.discrete()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.draw"><code class="docutils literal notranslate"><span class="pre">raw_env.draw()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.get_cont_action"><code class="docutils literal notranslate"><span class="pre">raw_env.get_cont_action()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.get_next_point"><code class="docutils literal notranslate"><span class="pre">raw_env.get_next_point()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.heuristic"><code class="docutils literal notranslate"><span class="pre">raw_env.heuristic()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.is_dyn_obstacle"><code class="docutils literal notranslate"><span class="pre">raw_env.is_dyn_obstacle()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.is_obstacle"><code class="docutils literal notranslate"><span class="pre">raw_env.is_obstacle()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.last"><code class="docutils literal notranslate"><span class="pre">raw_env.last()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.next_agent"><code class="docutils literal notranslate"><span class="pre">raw_env.next_agent()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.q_learning_state_space"><code class="docutils literal notranslate"><span class="pre">raw_env.q_learning_state_space()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.reset"><code class="docutils literal notranslate"><span class="pre">raw_env.reset()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.step"><code class="docutils literal notranslate"><span class="pre">raw_env.step()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_env.update_a_star_paths"><code class="docutils literal notranslate"><span class="pre">raw_env.update_a_star_paths()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.custom_environment.html#mas_navigation.custom_environment.raw_print_state"><code class="docutils literal notranslate"><span class="pre">raw_print_state()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.node_class.html">mas_navigation.node_class module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node"><code class="docutils literal notranslate"><span class="pre">Node</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node.add_child"><code class="docutils literal notranslate"><span class="pre">Node.add_child()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.test.html">mas_navigation.test module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.test.html#mas_navigation.test.ReplayBuffer"><code class="docutils literal notranslate"><span class="pre">ReplayBuffer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.test.html#mas_navigation.test.ReplayBuffer.sample_buffer"><code class="docutils literal notranslate"><span class="pre">ReplayBuffer.sample_buffer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="mas_navigation.test.html#mas_navigation.test.ReplayBuffer.store_transition"><code class="docutils literal notranslate"><span class="pre">ReplayBuffer.store_transition()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.test.html#mas_navigation.test.print_state"><code class="docutils literal notranslate"><span class="pre">print_state()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.test.html#mas_navigation.test.stable_hash"><code class="docutils literal notranslate"><span class="pre">stable_hash()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="mas_navigation.test.html#mas_navigation.test.train"><code class="docutils literal notranslate"><span class="pre">train()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Multi-Agent Path Planning and Navigation with A* and Q-Learning</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.custom_environment.html">mas_navigation.custom_environment module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.node_class.html">mas_navigation.node_class module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.test.html">mas_navigation.test module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Laura Hake.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/api/mas_navigation.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

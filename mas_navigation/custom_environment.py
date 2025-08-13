@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 import math
 import string
-from node_class import Node
+from .node_class import Node
 from gymnasium.utils import EzPickle
 from gymnasium.core import ObsType
 from typing import Any
@@ -15,15 +15,31 @@ from pettingzoo.mpe._mpe_utils.scenario import BaseScenario
 from pettingzoo.mpe._mpe_utils.simple_env import SimpleEnv, make_env
 from pettingzoo.utils.conversions import parallel_wrapper_fn
 
-alphabet = list(string.ascii_uppercase)
 
 def raw_print_state(grid):
+    """Print a 2D integer grid to stdout.
+
+    Prints rows from top to bottom for quick inspection of the state before state aggregation.
+
+    Args:
+        grid (list[list[int]]): 2D grid of cells. Each cell is an integer representing the state of that cell.
+    """
     print("The state is:")
     for r in range(len(grid)-1, -1, -1):
         row = grid[r]
         print(" ".join(f"{cell:2}" for cell in row))
         
-def print_state(state, size=9):
+def print_state(state):
+    """Print the compact Q-state representation.
+
+    The layout shows a 3x3 center region and four aggregated directional regions
+    in the order top, left, right, bottom.
+    The center cell represents the A* action direction.
+
+    Args:
+        state (Sequence[int]): Encoded state. First 9 entries are the center 3×3 region.
+            Entries 9..12 encode the four aggregated regions.
+    """
     print("=== Q-State Representation ===")
     
     # Extract segments
@@ -54,9 +70,24 @@ def print_state(state, size=9):
         
         
 class Agent(BaseAgent):
-    """
-    Description: Agent object with the addition of a*-path attributes and the Q-Learning state
-        
+    """Mobile agent with A* guidance, Q-learning state, and simple PID tracking.
+
+    Attributes:
+        a_star_old (list[tuple[float, float]]): Already reached A* waypoints.
+        a_star_new (list[tuple[float, float]]): Remaining A* waypoints.
+        goal_point (list[float, float]): Goal position in world coordinates.
+        q_state (tuple[int, ...]): Current Q-learning state encoding.
+        controller_x (PID): PID controller for x-axis velocity command.
+        controller_y (PID): PID controller for y-axis velocity command.
+        terminated (bool): Set when the agent encountered a terminal event.
+        a_star_action (int | None): Last A*-aligned discrete action {0,1,2,3}.
+        action_history (list[int]): Last few executed discrete actions.
+        reward (float): Last assigned scalar reward.
+
+    Args:
+        Kp (float): Proportional gain for both PID controllers.
+        Ki (float): Integral gain for both PID controllers.
+        Kd (float): Derivative gain for both PID controllers.
     """
     def __init__(self, Kp = 10, Ki = 0, Kd = 0):
         super().__init__()
@@ -75,14 +106,24 @@ class Agent(BaseAgent):
 
 
 class Landmark(BaseLandmark):
+    """Goal landmark.
+
+    The landmark is non‑movable and used to check goal proximity.
     """
-    Description: Used for the Agent goal points
-        
-    """ 
     def __init__(self):
         super().__init__()
 
     def is_collision(self, agent):
+        """Return True if the agent overlaps the landmark.
+
+        Uses Euclidean distance and the agent radius.
+
+        Args:
+            agent (Agent): Agent instance.
+
+        Returns:
+            bool: True if the agent is within its radius of the landmark center.
+        """
         euclidian_dis = math.sqrt((self.state.p_pos[0] - agent.state.p_pos[0]) ** 2 + (agent.state.p_pos[1] - agent.state.p_pos[1]) ** 2)
         if euclidian_dis <= agent.size:
             return True
@@ -90,16 +131,24 @@ class Landmark(BaseLandmark):
             return False
 
 class RandomLandmark(BaseLandmark):
-    """
-    Description: Used to simulate ramdom obstacles in the environment. 
-                 These will not be consindered for A* path planning.
-        
+    """Rectangular landmark that can be used as a random obstacle in training. Currently not used in the environment.
+
+    The rectangle is represented by center position and width × height in meters.
     """
     def __init__(self):
+        """Initialize rectangle size."""
         super().__init__()
         self.size = np.array([0.2, 0.2])
     
     def is_collision(self, agent):
+        """Return True if the agent is inside the rectangle.
+
+        Args:
+            agent (Agent): Agent instance.
+
+        Returns:
+            bool: True if the agent center lies within the rectangle bounds.
+        """
         x_min = self.state.p_pos[0] - self.size[0] / 2
         x_max = self.state.p_pos[0] + self.size[0] / 2
         y_min = self.state.p_pos[1] - self.size[1] / 2
@@ -111,21 +160,36 @@ class RandomLandmark(BaseLandmark):
         return x_min <= agent_x <= x_max and y_min <= agent_y <= y_max
     
     def get_distance(self, agent_x, agent_y):
+        """Return absolute x and y offsets from the rectangle center.
+
+        Args:
+            agent_x (float): Agent x coordinate.
+            agent_y (float): Agent y coordinate.
+
+        Returns:
+            tuple[float, float]: Absolute delta in x and y.
+        """
         dis_x = self.state.p_pos[0]-agent_x
         dis_y = self.state.p_pos[1]-agent_y
         return abs(dis_x), abs(dis_y)
     
 class RectLandmark(BaseLandmark):
-    """
-    Description: Used to simulate the shelves in the environment.
-                 These will be consindered for A* path planning.
-        
-    """
+    """Rectangular landmark used as a static obstacle in planning and runtime."""
     def __init__(self):
         super().__init__()
         self.size = np.array([0.2, 0.4])
     
     def is_collision(self, agent):
+        """Return True if the agent overlaps the rectangle.
+
+        Collision uses rectangle bounds expanded by circles around the rectanlgle corners.
+
+        Args:
+            agent (Agent): Agent instance.
+
+        Returns:
+            bool: True if the agent center intersects the expanded rectangle.
+        """
         buffer = agent.size
         agent_x, agent_y = agent.state.p_pos
         center_x, center_y = self.state.p_pos
@@ -155,12 +219,17 @@ class RectLandmark(BaseLandmark):
         return False
     
 class World(BaseWorld):
-    
+    """World with custom continuous dynamics and collision handling for mixed shapes."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
     
     def integrate_state(self, p_force):
+        """Integrate positions using applied forces and reset velocities.
+
+        Args:
+            p_force (list[np.ndarray | None]): Per-entity force vectors in world coordinates.
+        """
         for i, entity in enumerate(self.entities):
             if not entity.movable:
                 continue
@@ -172,6 +241,17 @@ class World(BaseWorld):
     
     
     def apply_action_force(self, p_force):
+        """Map agent actions to planar forces.
+
+        The first two entries of the action vector are interpreted as desired planar velocities.
+        A global scale is applied when converting to forces.
+
+        Args:
+            p_force (list[np.ndarray | None]): Force accumulator.
+
+        Returns:
+            list[np.ndarray | None]: Updated force accumulator.
+        """
         # set applied forces
         for i, agent in enumerate(self.agents):
             if agent.movable:
@@ -183,10 +263,33 @@ class World(BaseWorld):
         return p_force
     
     def apply_environment_force(self, p_force):
+        """Apply environment forces such as contacts. Currently a no-op.
+
+        Stub that returns the input unchanged.
+
+        Args:
+            p_force (list[np.ndarray | None]): Force accumulator.
+
+        Returns:
+            list[np.ndarray | None]: Unchanged force accumulator.
+        """
         return p_force
     
     # get collision forces for any contact between two entities
     def get_collision_force(self, entity_a, entity_b):
+        """Compute contact forces and termination flags between two entities.
+
+        Handles three cases: rectangle–rectangle, rectangle–disk, and disk–disk.
+        Uses a soft penetration model with contact margin and sets termination flags
+        on agents upon significant penetration.
+
+        Args:
+            entity_a: First entity.
+            entity_b: Second entity.
+
+        Returns:
+            list[np.ndarray | None, np.ndarray | None]: Force on A and force on B.
+        """
         if (not entity_a.collide) or (not entity_b.collide):
             return [None, None]  # not a collider
         if entity_a is entity_b:
@@ -290,6 +393,7 @@ class World(BaseWorld):
 
 
 class raw_env(SimpleEnv, EzPickle):
+    """PettingZoo MPE environment with A*, local state encoding, and tabular Q-Learning."""
     def __init__(
         self,
         num_good=3,
@@ -298,6 +402,15 @@ class raw_env(SimpleEnv, EzPickle):
         continuous_actions=True,
         render_mode=None,
     ):
+        """Create scenario, world, and base SimpleEnv.
+
+        Args:
+            num_good (int): Number of agents.
+            num_obstacles (int): Number of rectangular landmarks.
+            max_cycles (int): Step limit per episode.
+            continuous_actions (bool): Use continuous action vectors.
+            render_mode (str | None): None or "human".
+        """
         EzPickle.__init__(
             self,
             num_good=num_good,
@@ -326,6 +439,15 @@ class raw_env(SimpleEnv, EzPickle):
         self.state = [1] * (size * size)
         
     def draw(self):
+        """Render entities, goals, and local grid overlay with pygame.
+
+        Assumes an initialized pygame screen and viewport. Draws agents as disks,
+        goals as rings, obstacles as rectangles, and the local grid around each agent.
+
+        Raises:
+            AssertionError: If screen coordinates compute out of bounds.
+        """
+
         # clear screen
         self.screen.fill((255, 255, 255))
 
@@ -538,9 +660,39 @@ class raw_env(SimpleEnv, EzPickle):
                 
     def is_obstacle(self, x, y, q_learning = False, override_epsilon = None):
         """
-        Description: checks if the given coordinates are colliding with obstacles.
-        
+        Return True if (x, y) lies inside an obstacle region.
+
+        Semantics
+
+        Planning / state encoding (``q_learning=True``)
+            Rectangular and random rectangular landmarks are treated as obstacles
+            using the planning margin (``epsilon_planning``). The outer boundary
+            is not checked here because A* paths do not intersect walls.
+
+        Runtime (``q_learning=False``)
+            Only rectangular landmarks are treated as obstacles using the runtime
+            margin (``epsilon_runtime``). Out-of-bounds is handled by
+            :meth:`Scenario.is_out_of_bounds` and not here.
+
+        The active epsilon can be overridden via ``override_epsilon``.
+
+        Parameters
+        ----------
+        x : float
+            World x coordinate.
+        y : float
+            World y coordinate.
+        q_learning : bool, optional
+            If True, use planning semantics and margin; if False, use runtime semantics and margin.
+        override_epsilon : float or None, optional
+            Margin that replaces the default.
+
+        Returns
+        -------
+        bool
+            True if the point is inside an obstacle region under the selected semantics.
         """
+        
         epsilon = self.epsilon_planning if q_learning else self.epsilon_runtime
         if override_epsilon is not None:
             epsilon = override_epsilon
@@ -560,9 +712,19 @@ class raw_env(SimpleEnv, EzPickle):
         return False
     
     def discrete(self, agent_pos_x, agent_pos_y, goal_pos_x, goal_pos_y):
-        """
-        Description: Discretizing the environment.
-        
+        """Discretize free space into a 4‑connected grid and find nearest nodes.
+
+        Builds a uniform grid, removes cells inside obstacles, connects
+        4‑neighborhood, and returns the closest start and goal nodes.
+
+        Args:
+            agent_pos_x (float): Agent x.
+            agent_pos_y (float): Agent y.
+            goal_pos_x (float): Goal x.
+            goal_pos_y (float): Goal y.
+
+        Returns:
+            tuple[Node | None, Node | None]: Start and end nodes on the free grid.
         """
         cell_size = 0.05
         epsilon = 5e-2
@@ -626,15 +788,36 @@ class raw_env(SimpleEnv, EzPickle):
     
 
     def heuristic(self, node, end_node):
+        """Return heuristic for A*.
+
+        Currently returns zero to obtain Dijkstra behavior.
+
+        Args:
+            node (Node): Current node.
+            end_node (Node): Goal node.
+
+        Returns:
+            float: Heuristic estimate of remaining cost.
+        """
         # euclidean distance
         #return ((node.x - end_node.x) ** 2 + (node.y - end_node.y) ** 2) ** 0.5
         return 0
 
 
     def A_star(self, start_node, end_node):
-        """
-        Description: returns the A*-path 
         
+        """Compute a shortest path on the discrete grid.
+
+        Uses best‑first search with total cost g + h (A*) and reconstructs the path by
+        following parent pointers.
+
+        Args:
+            start_node (Node): Start node.
+            end_node (Node): Goal node.
+
+        Returns:
+            list[tuple[float, float]] | None: Path as a list of (x, y) positions
+                in world coordinates. None if no path exists.
         """
         Open = [start_node]
         Closed = []
@@ -676,14 +859,19 @@ class raw_env(SimpleEnv, EzPickle):
                 child.total_cost = child.cost_to_come + child.cost_to_go
                 
             if not Open:
-                print("Hier läuft etwas schief")
+                print("ERROR: No path found")
 
 
     def is_dyn_obstacle(self, x, y, current_agent):
-        """
-        Description: checks if the given coordinates are colliding with an agent
-                     returns either static or the direction the agent is moving in
-        
+        """Return True if a point is inside any other agent's disk.
+
+        Args:
+            x (float): World x coordinate.
+            y (float): World y coordinate.
+            current_agent (Agent): Agent to exclude from the check.
+
+        Returns:
+            bool: True if the point intersects another agent.
         """
         for agent in self.world.agents:
             # agent should not detect himself as an obstacle
@@ -697,6 +885,22 @@ class raw_env(SimpleEnv, EzPickle):
     
     
     def classify_region(self, grid_region, direction):
+        """Classify a 3x4 region into free, passable, or impassable.
+
+        Free if the number of obstacle cells is below a threshold.
+        Passable if at least one row or column in the movement direction is fully free.
+        Otherwise impassable.
+
+        Args:
+            grid_region (list[list[int]]): 3x4 binary subgrid.
+            direction (str): One of "top", "bottom", "left", "right".
+
+        Returns:
+            int: 0 for free, 1 for passable, 2 for impassable.
+
+        Raises:
+            ValueError: If direction is not recognized.
+        """
         flat = [cell for row in grid_region for cell in row]
         obstacle_count = sum(flat)
 
@@ -723,12 +927,18 @@ class raw_env(SimpleEnv, EzPickle):
     
     
     def q_learning_state_space(self, agent, a_star_new):
-        """
-        Description: returns the Q-Learning state space
-        
-        STATUS MAPPING:
-            free            = 0
-            obstacle        = 1
+        """Encode the local observation for tabular Q‑learning.
+
+        Builds a binary occupancy grid around the agent, embeds the A* direction
+        into the center cell, keeps the center 3×3 at full resolution, and aggregates
+        four 3×4 directional regions into categorical labels.
+
+        Args:
+            agent (Agent): Agent to encode.
+            a_star_new (list[tuple[float, float]]): Remaining A* path.
+
+        Returns:
+            tuple[int, ...]: Compact state tuple length 13.
         """
         size = 11
         agent_grid = 5
@@ -777,6 +987,18 @@ class raw_env(SimpleEnv, EzPickle):
         return tuple(state)
     
     def a_star_direction(self, agent, a_star_new):
+        """Return the dominant discrete direction toward the next target.
+
+        Chooses either the goal or the nearest remaining A* waypoint and returns
+        as a discrete action code.
+
+        Args:
+            agent (Agent): Agent instance.
+            a_star_new (list[tuple[float, float]]): Remaining A* waypoints.
+
+        Returns:
+            int: Discrete action code in {0 up, 1 down, 2 left, 3 right}.
+        """
 
         agent_pos = np.array(agent.state.p_pos)
         
@@ -796,9 +1018,19 @@ class raw_env(SimpleEnv, EzPickle):
 
 
     def last(
+        
         self, observe: bool = True
     ) -> tuple[ObsType | None, float, bool, bool, dict[str, Any]]:
-        """Returns observation, cumulative reward, terminated, truncated, info for the current agent (specified by self.agent_selection)."""
+        """Return PettingZoo‑style observation tuple for the current agent.
+
+        Also updates the agent's Q‑state before returning.
+
+        Args:
+            observe (bool): If True, compute the observation.
+
+        Returns:
+            tuple: (observation, reward, terminated, truncated, info, q_state)
+        """
         agent = self.agent_selection # current agent that is being stepped
         assert agent is not None
         observation = self.observe(agent) if observe else None
@@ -817,6 +1049,18 @@ class raw_env(SimpleEnv, EzPickle):
 
 
     def reset(self, seed=None, options=None):
+        """Reset the environment and initialize per‑agent A* paths and states.
+
+        Randomizes start and goal positions subject to obstacle and separation constraints.
+
+        Args:
+            seed (int | None): seed.
+            options (dict | None): Unused, kept for API compatibility.
+
+        Returns:
+            tuple[dict[str, tuple[int, ...]], dict[str, np.ndarray]]:
+                Mapping from agent name to Q‑state, and mapping to raw observation.
+        """
         if seed is not None:
             self._seed(seed=seed)
         self.scenario.reset_world(self.world, self.np_random)
@@ -888,6 +1132,14 @@ class raw_env(SimpleEnv, EzPickle):
         
         
     def step(self, action):
+        """Advance the environment by one agent action.
+
+        Buffers the action, advances the world when the last agent has acted,
+        updates rewards and terminations, and renders if enabled.
+
+        Args:
+            action (np.ndarray | int | None): Action for the selected agent. None if terminated.
+        """
         if (
             self.terminations[self.agent_selection]
             or self.truncations[self.agent_selection]
@@ -917,10 +1169,22 @@ class raw_env(SimpleEnv, EzPickle):
             self.render()
 
     def next_agent(self):
+        """Advance the internal agent selector to the next agent."""
         self.agent_selection = self._agent_selector.next()
         
     
     def update_a_star_paths(self, agent):
+        """Advance and clean the remaining A* path for an agent.
+
+        Removes already reached waypoints based on proximity. Clears the remaining path
+        upon entering a goal neighborhood.
+
+        Args:
+            agent (Agent): Agent instance.
+
+        Returns:
+            bool: True if the path list or status changed.
+        """
         epsilon = 25e-3
         goal_epsilon = 0.09
         agent_pos = np.array(agent.state.p_pos)
@@ -996,29 +1260,49 @@ class raw_env(SimpleEnv, EzPickle):
             self.terminations[agent.name] = self.scenario.is_termination(agent, self.world)
             
     def get_next_point(self, agent_x, agent_y, action, agent):
-        action_print = "nothing"
+        """Compute the next 1‑step grid target for a discrete action.
+
+        Args:
+            agent_x (float): Current x.
+            agent_y (float): Current y.
+            action (int): Discrete action in {0 up, 1 down, 2 left, 3 right}.
+            agent (str): Agent name, unused but kept for symmetry.
+
+        Returns:
+            list[float, float]: Target point in world coordinates.
+        """
         gridsize = 0.05
         goal_point = [0.0, 0.0]
         if action == 0: #up
             goal_point[0]=agent_x
             goal_point[1]=agent_y+gridsize
-            action_print = "up"
         if action == 1: #down
             goal_point[0]=agent_x
             goal_point[1]=agent_y-gridsize
-            action_print = "down"
         if action == 2: #left
             goal_point[0]=agent_x-gridsize
             goal_point[1]=agent_y
-            action_print = "left"
         if action == 3: #right
             goal_point[0]=agent_x+gridsize
             goal_point[1]=agent_y   
-            action_print = "right"
         
         return goal_point
 
     def get_cont_action(self, observation, dimension, discrete_action, agent):
+        """Convert a discrete move into a continuous control vector.
+
+        Sets PID setpoints one grid cell away, computes planar velocity commands,
+        and maps them into the MPE action vector layout.
+
+        Args:
+            observation (np.ndarray): Current observation [x, y, goal_x, goal_y].
+            dimension (int): World dimension, expected 2.
+            discrete_action (int): Discrete action in {0,1,2,3}.
+            agent (str): Agent name.
+
+        Returns:
+            np.ndarray: Continuous action vector of length 2*dimension + 1.
+        """
         agent_object = self.world.agents[self._index_map[agent]]
         agent_object.action_history.append(discrete_action)
         if len(agent_object.action_history) > 2:
@@ -1047,12 +1331,24 @@ parallel_env = parallel_wrapper_fn(env)
 
 
 class Scenario(BaseScenario):
+    """Scenario with static shelf-like landmarks, random starts and goals, and rewards."""
+    
     def __init__(self):
+        """Initialize default collision margins for runtime and planning."""
         super().__init__()
         self.epsilon_runtime = 5e-3
         self.epsilon_planning = 9e-2
     
     def make_world(self, num_good=2, num_obstacles=4):
+        """Create world, agents, and rectangular landmarks.
+
+        Args:
+            num_good (int): Number of agents.
+            num_obstacles (int): Number of rectangular obstacles.
+
+        Returns:
+            World: Configured world instance.
+        """
         world = World()
         # set any world properties first
         world.dim_c = 2
@@ -1083,6 +1379,15 @@ class Scenario(BaseScenario):
 
 
     def reset_world(self, world, np_random):
+        """Randomize agent states and goal points.
+
+        Ensures no overlap with obstacles, enforces inter‑agent spacing, and avoids
+        goal conflicts.
+
+        Args:
+            world (World): World to modify.
+            np_random (np.random.Generator): Random generator from PettingZoo.
+        """
         colors = [
         [0.0, 1.0, 0.0],   # green
         [0.0, 0.0, 1.0],   # blue
@@ -1171,6 +1476,16 @@ class Scenario(BaseScenario):
 
         
     def is_in_landmark(self, world, pos_x, pos_y):
+        """Return True if a point is inside any rectangle with planning margin.
+
+        Args:
+            world (World): World instance.
+            pos_x (float): x coordinate.
+            pos_y (float): y coordinate.
+
+        Returns:
+            bool: True if inside any expanded rectangle.
+        """
         for landmark in world.landmarks:
             if isinstance(landmark, (RectLandmark, RandomLandmark)):
                 if landmark.state.p_pos is None:
@@ -1186,16 +1501,42 @@ class Scenario(BaseScenario):
         
         
     def is_collision(self, agent1, agent2):
+        """Return True if two agents overlap with runtime margin.
+
+        Args:
+            agent1 (Agent): First agent.
+            agent2 (Agent): Second agent.
+
+        Returns:
+            bool: True if center distance is below sum of radii plus margin.
+        """
         delta_pos = agent1.state.p_pos - agent2.state.p_pos
         dist = np.sqrt(np.sum(np.square(delta_pos)))
         dist_min = agent1.size + agent2.size + self.epsilon_runtime
         return True if dist < dist_min else False
     
     def is_out_of_bounds(self, agent, margin = 0.05):
+        """Return True if the agent is outside the square workspace.
+
+        Args:
+            agent (Agent): Agent instance.
+            margin (float): Allowed slack beyond unit box.
+
+        Returns:
+            bool: True if any coordinate exceeds the bound.
+        """
         bound = 1.0 + margin
         return np.any(np.abs(agent.state.p_pos) > bound)
     
     def is_goal(self, agent):
+        """Return True if the agent is within goal proximity.
+
+        Args:
+            agent (Agent): Agent instance.
+
+        Returns:
+            bool: True if distance to goal is below size plus epsilon.
+        """
         epsilon_goal = 6e-3
         delta_pos = agent.state.p_pos - agent.goal_point
         dist = np.sqrt(np.sum(np.square(delta_pos)))
@@ -1204,6 +1545,18 @@ class Scenario(BaseScenario):
             
     
     def reward(self, agent, world):
+        """Compute shaped reward for a single agent.
+
+        Penalizes collisions and out-of-bounds, adds small time penalty,
+        and rewards A*-aligned actions.
+
+        Args:
+            agent (Agent): Agent instance.
+            world (World): World instance.
+
+        Returns:
+            float: Scalar reward for this agent and step.
+        """
         reward = 0
         
         for landmark in world.landmarks:
@@ -1229,10 +1582,27 @@ class Scenario(BaseScenario):
         return reward
 
     def agents(self, world):
+        """Return list of agents.
+
+        Args:
+            world (World): World instance.
+
+        Returns:
+            list[Agent]: Agents in the world.
+        """
         return world.agents
 
 
     def observation(self, agent, world):
+        """Return low‑level observation [x, y, goal_x, goal_y].
+
+        Args:
+            agent (Agent): Agent instance.
+            world (World): World instance.
+
+        Returns:
+            np.ndarray: Concatenated agent and goal positions.
+        """
         # world argument is kept because methods in the simple_env.py have it based on the original version of the observation method
         agent_pos = np.array(agent.state.p_pos)
         goal_pos = np.array(agent.goal_point)
@@ -1240,6 +1610,17 @@ class Scenario(BaseScenario):
 
     
     def is_termination(self, agent, world):
+        """Return True if the agent reached a terminal condition.
+
+        Terminal events include collision, out‑of‑bounds, or goal reached.
+
+        Args:
+            agent (Agent): Agent instance.
+            world (World): World instance.
+
+        Returns:
+            bool: Termination flag.
+        """
         if agent.terminated:
             return True
         

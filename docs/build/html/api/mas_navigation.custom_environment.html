@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>mas_navigation.custom_environment module &#8212; Multi-Agent Path Planning and Navigation with A* and Q-Learning 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="mas_navigation.node_class module" href="mas_navigation.node_class.html" />
+    <link rel="prev" title="Multi-Agent Path Planning and Navigation with A* and Q-Learning documentation" href="../index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-mas_navigation.custom_environment">
+<span id="mas-navigation-custom-environment-module"></span><h1>mas_navigation.custom_environment module<a class="headerlink" href="#module-mas_navigation.custom_environment" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">Agent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Kp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ki</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Kd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Agent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Agent" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Agent</span></code></p>
+<p>Mobile agent with A* guidance, Q-learning state, and simple PID tracking.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.a_star_old">
+<span class="sig-name descname"><span class="pre">a_star_old</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.a_star_old" title="Link to this definition">¶</a></dt>
+<dd><p>Already reached A* waypoints.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[tuple[float, float]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.a_star_new">
+<span class="sig-name descname"><span class="pre">a_star_new</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.a_star_new" title="Link to this definition">¶</a></dt>
+<dd><p>Remaining A* waypoints.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[tuple[float, float]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.goal_point">
+<span class="sig-name descname"><span class="pre">goal_point</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.goal_point" title="Link to this definition">¶</a></dt>
+<dd><p>Goal position in world coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[float, float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.q_state">
+<span class="sig-name descname"><span class="pre">q_state</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.q_state" title="Link to this definition">¶</a></dt>
+<dd><p>Current Q-learning state encoding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.controller_x">
+<span class="sig-name descname"><span class="pre">controller_x</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.controller_x" title="Link to this definition">¶</a></dt>
+<dd><p>PID controller for x-axis velocity command.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>PID</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.controller_y">
+<span class="sig-name descname"><span class="pre">controller_y</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.controller_y" title="Link to this definition">¶</a></dt>
+<dd><p>PID controller for y-axis velocity command.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>PID</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.terminated">
+<span class="sig-name descname"><span class="pre">terminated</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.terminated" title="Link to this definition">¶</a></dt>
+<dd><p>Set when the agent encountered a terminal event.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.a_star_action">
+<span class="sig-name descname"><span class="pre">a_star_action</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.a_star_action" title="Link to this definition">¶</a></dt>
+<dd><p>Last A*-aligned discrete action {0,1,2,3}.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.action_history">
+<span class="sig-name descname"><span class="pre">action_history</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.action_history" title="Link to this definition">¶</a></dt>
+<dd><p>Last few executed discrete actions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Agent.reward">
+<span class="sig-name descname"><span class="pre">reward</span></span><a class="headerlink" href="#mas_navigation.custom_environment.Agent.reward" title="Link to this definition">¶</a></dt>
+<dd><p>Last assigned scalar reward.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Kp</strong> (<em>float</em>) – Proportional gain for both PID controllers.</p></li>
+<li><p><strong>Ki</strong> (<em>float</em>) – Integral gain for both PID controllers.</p></li>
+<li><p><strong>Kd</strong> (<em>float</em>) – Derivative gain for both PID controllers.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Landmark">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">Landmark</span></span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Landmark"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Landmark" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Landmark</span></code></p>
+<p>Goal landmark.</p>
+<p>The landmark is non‑movable and used to check goal proximity.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Landmark.is_collision">
+<span class="sig-name descname"><span class="pre">is_collision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Landmark.is_collision"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Landmark.is_collision" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the agent overlaps the landmark.</p>
+<p>Uses Euclidean distance and the agent radius.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the agent is within its radius of the landmark center.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.RandomLandmark">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">RandomLandmark</span></span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#RandomLandmark"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.RandomLandmark" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Landmark</span></code></p>
+<p>Rectangular landmark that can be used as a random obstacle in training. Currently not used in the environment.</p>
+<p>The rectangle is represented by center position and width × height in meters.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.RandomLandmark.get_distance">
+<span class="sig-name descname"><span class="pre">get_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent_y</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#RandomLandmark.get_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.RandomLandmark.get_distance" title="Link to this definition">¶</a></dt>
+<dd><p>Return absolute x and y offsets from the rectangle center.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent_x</strong> (<em>float</em>) – Agent x coordinate.</p></li>
+<li><p><strong>agent_y</strong> (<em>float</em>) – Agent y coordinate.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Absolute delta in x and y.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[float, float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.RandomLandmark.is_collision">
+<span class="sig-name descname"><span class="pre">is_collision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#RandomLandmark.is_collision"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.RandomLandmark.is_collision" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the agent is inside the rectangle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the agent center lies within the rectangle bounds.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.RectLandmark">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">RectLandmark</span></span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#RectLandmark"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.RectLandmark" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Landmark</span></code></p>
+<p>Rectangular landmark used as a static obstacle in planning and runtime.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.RectLandmark.is_collision">
+<span class="sig-name descname"><span class="pre">is_collision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#RectLandmark.is_collision"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.RectLandmark.is_collision" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the agent overlaps the rectangle.</p>
+<p>Collision uses rectangle bounds expanded by circles around the rectanlgle corners.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the agent center intersects the expanded rectangle.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">Scenario</span></span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseScenario</span></code></p>
+<p>Scenario with static shelf-like landmarks, random starts and goals, and rewards.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.agents">
+<span class="sig-name descname"><span class="pre">agents</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">world</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.agents"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.agents" title="Link to this definition">¶</a></dt>
+<dd><p>Return list of agents.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>world</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.World" title="mas_navigation.custom_environment.World"><em>World</em></a>) – World instance.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Agents in the world.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent">Agent</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.is_collision">
+<span class="sig-name descname"><span class="pre">is_collision</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.is_collision"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.is_collision" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if two agents overlap with runtime margin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent1</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – First agent.</p></li>
+<li><p><strong>agent2</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Second agent.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if center distance is below sum of radii plus margin.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.is_goal">
+<span class="sig-name descname"><span class="pre">is_goal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.is_goal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.is_goal" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the agent is within goal proximity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if distance to goal is below size plus epsilon.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.is_in_landmark">
+<span class="sig-name descname"><span class="pre">is_in_landmark</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">world</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos_y</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.is_in_landmark"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.is_in_landmark" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if a point is inside any rectangle with planning margin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>world</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.World" title="mas_navigation.custom_environment.World"><em>World</em></a>) – World instance.</p></li>
+<li><p><strong>pos_x</strong> (<em>float</em>) – x coordinate.</p></li>
+<li><p><strong>pos_y</strong> (<em>float</em>) – y coordinate.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if inside any expanded rectangle.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.is_out_of_bounds">
+<span class="sig-name descname"><span class="pre">is_out_of_bounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.is_out_of_bounds"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.is_out_of_bounds" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the agent is outside the square workspace.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p></li>
+<li><p><strong>margin</strong> (<em>float</em>) – Allowed slack beyond unit box.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if any coordinate exceeds the bound.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.is_termination">
+<span class="sig-name descname"><span class="pre">is_termination</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.is_termination"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.is_termination" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the agent reached a terminal condition.</p>
+<p>Terminal events include collision, out‑of‑bounds, or goal reached.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p></li>
+<li><p><strong>world</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.World" title="mas_navigation.custom_environment.World"><em>World</em></a>) – World instance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Termination flag.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.make_world">
+<span class="sig-name descname"><span class="pre">make_world</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_good</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_obstacles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.make_world"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.make_world" title="Link to this definition">¶</a></dt>
+<dd><p>Create world, agents, and rectangular landmarks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_good</strong> (<em>int</em>) – Number of agents.</p></li>
+<li><p><strong>num_obstacles</strong> (<em>int</em>) – Number of rectangular obstacles.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Configured world instance.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#mas_navigation.custom_environment.World" title="mas_navigation.custom_environment.World">World</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.observation">
+<span class="sig-name descname"><span class="pre">observation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.observation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.observation" title="Link to this definition">¶</a></dt>
+<dd><p>Return low‑level observation [x, y, goal_x, goal_y].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p></li>
+<li><p><strong>world</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.World" title="mas_navigation.custom_environment.World"><em>World</em></a>) – World instance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Concatenated agent and goal positions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.reset_world">
+<span class="sig-name descname"><span class="pre">reset_world</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">world</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np_random</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.reset_world"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.reset_world" title="Link to this definition">¶</a></dt>
+<dd><p>Randomize agent states and goal points.</p>
+<p>Ensures no overlap with obstacles, enforces inter‑agent spacing, and avoids
+goal conflicts.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>world</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.World" title="mas_navigation.custom_environment.World"><em>World</em></a>) – World to modify.</p></li>
+<li><p><strong>np_random</strong> (<em>np.random.Generator</em>) – Random generator from PettingZoo.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.Scenario.reward">
+<span class="sig-name descname"><span class="pre">reward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#Scenario.reward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.Scenario.reward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute shaped reward for a single agent.</p>
+<p>Penalizes collisions and out-of-bounds, adds small time penalty,
+and rewards A*-aligned actions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p></li>
+<li><p><strong>world</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.World" title="mas_navigation.custom_environment.World"><em>World</em></a>) – World instance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Scalar reward for this agent and step.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.World">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">World</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#World"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.World" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">World</span></code></p>
+<p>World with custom continuous dynamics and collision handling for mixed shapes.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.World.apply_action_force">
+<span class="sig-name descname"><span class="pre">apply_action_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p_force</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#World.apply_action_force"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.World.apply_action_force" title="Link to this definition">¶</a></dt>
+<dd><p>Map agent actions to planar forces.</p>
+<p>The first two entries of the action vector are interpreted as desired planar velocities.
+A global scale is applied when converting to forces.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p_force</strong> (<em>list</em><em>[</em><em>np.ndarray</em><em> | </em><em>None</em><em>]</em>) – Force accumulator.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Updated force accumulator.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[np.ndarray | None]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.World.apply_environment_force">
+<span class="sig-name descname"><span class="pre">apply_environment_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p_force</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#World.apply_environment_force"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.World.apply_environment_force" title="Link to this definition">¶</a></dt>
+<dd><p>Apply environment forces such as contacts. Currently a no-op.</p>
+<p>Stub that returns the input unchanged.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p_force</strong> (<em>list</em><em>[</em><em>np.ndarray</em><em> | </em><em>None</em><em>]</em>) – Force accumulator.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Unchanged force accumulator.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[np.ndarray | None]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.World.get_collision_force">
+<span class="sig-name descname"><span class="pre">get_collision_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entity_a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_b</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#World.get_collision_force"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.World.get_collision_force" title="Link to this definition">¶</a></dt>
+<dd><p>Compute contact forces and termination flags between two entities.</p>
+<p>Handles three cases: rectangle–rectangle, rectangle–disk, and disk–disk.
+Uses a soft penetration model with contact margin and sets termination flags
+on agents upon significant penetration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>entity_a</strong> – First entity.</p></li>
+<li><p><strong>entity_b</strong> – Second entity.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Force on A and force on B.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[np.ndarray | None, np.ndarray | None]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.World.integrate_state">
+<span class="sig-name descname"><span class="pre">integrate_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p_force</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#World.integrate_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.World.integrate_state" title="Link to this definition">¶</a></dt>
+<dd><p>Integrate positions using applied forces and reset velocities.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p_force</strong> (<em>list</em><em>[</em><em>np.ndarray</em><em> | </em><em>None</em><em>]</em>) – Per-entity force vectors in world coordinates.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.print_state">
+<span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">print_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#print_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.print_state" title="Link to this definition">¶</a></dt>
+<dd><p>Print the compact Q-state representation.</p>
+<p>The layout shows a 3x3 center region and four aggregated directional regions
+in the order top, left, right, bottom.
+The center cell represents the A* action direction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>state</strong> (<em>Sequence</em><em>[</em><em>int</em><em>]</em>) – Encoded state. First 9 entries are the center 3×3 region.
+Entries 9..12 encode the four aggregated regions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">raw_env</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_good</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_obstacles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_cycles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">continuous_actions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">render_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">SimpleEnv</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">EzPickle</span></code></p>
+<p>PettingZoo MPE environment with A*, local state encoding, and tabular Q-Learning.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.A_star">
+<span class="sig-name descname"><span class="pre">A_star</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_node</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.A_star"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.A_star" title="Link to this definition">¶</a></dt>
+<dd><p>Compute a shortest path on the discrete grid.</p>
+<p>Uses best‑first search with total cost g + h (A*) and reconstructs the path by
+following parent pointers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_node</strong> (<a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node"><em>Node</em></a>) – Start node.</p></li>
+<li><p><strong>end_node</strong> (<a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node"><em>Node</em></a>) – Goal node.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Path as a list of (x, y) positions</dt><dd><p>in world coordinates. None if no path exists.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[tuple[float, float]] | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.a_star_direction">
+<span class="sig-name descname"><span class="pre">a_star_direction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a_star_new</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.a_star_direction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.a_star_direction" title="Link to this definition">¶</a></dt>
+<dd><p>Return the dominant discrete direction toward the next target.</p>
+<p>Chooses either the goal or the nearest remaining A* waypoint and returns
+as a discrete action code.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p></li>
+<li><p><strong>a_star_new</strong> (<em>list</em><em>[</em><em>tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em><em>]</em>) – Remaining A* waypoints.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Discrete action code in {0 up, 1 down, 2 left, 3 right}.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.classify_region">
+<span class="sig-name descname"><span class="pre">classify_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_region</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.classify_region"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.classify_region" title="Link to this definition">¶</a></dt>
+<dd><p>Classify a 3x4 region into free, passable, or impassable.</p>
+<p>Free if the number of obstacle cells is below a threshold.
+Passable if at least one row or column in the movement direction is fully free.
+Otherwise impassable.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>grid_region</strong> (<em>list</em><em>[</em><em>list</em><em>[</em><em>int</em><em>]</em><em>]</em>) – 3x4 binary subgrid.</p></li>
+<li><p><strong>direction</strong> (<em>str</em>) – One of “top”, “bottom”, “left”, “right”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 for free, 1 for passable, 2 for impassable.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If direction is not recognized.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.discrete">
+<span class="sig-name descname"><span class="pre">discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent_pos_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent_pos_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">goal_pos_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">goal_pos_y</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.discrete"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.discrete" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize free space into a 4‑connected grid and find nearest nodes.</p>
+<p>Builds a uniform grid, removes cells inside obstacles, connects
+4‑neighborhood, and returns the closest start and goal nodes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent_pos_x</strong> (<em>float</em>) – Agent x.</p></li>
+<li><p><strong>agent_pos_y</strong> (<em>float</em>) – Agent y.</p></li>
+<li><p><strong>goal_pos_x</strong> (<em>float</em>) – Goal x.</p></li>
+<li><p><strong>goal_pos_y</strong> (<em>float</em>) – Goal y.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Start and end nodes on the free grid.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[<a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node">Node</a> | None, <a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node">Node</a> | None]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.draw">
+<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.draw" title="Link to this definition">¶</a></dt>
+<dd><p>Render entities, goals, and local grid overlay with pygame.</p>
+<p>Assumes an initialized pygame screen and viewport. Draws agents as disks,
+goals as rings, obstacles as rectangles, and the local grid around each agent.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>AssertionError</strong> – If screen coordinates compute out of bounds.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.get_cont_action">
+<span class="sig-name descname"><span class="pre">get_cont_action</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">observation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dimension</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">discrete_action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.get_cont_action"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.get_cont_action" title="Link to this definition">¶</a></dt>
+<dd><p>Convert a discrete move into a continuous control vector.</p>
+<p>Sets PID setpoints one grid cell away, computes planar velocity commands,
+and maps them into the MPE action vector layout.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>observation</strong> (<em>np.ndarray</em>) – Current observation [x, y, goal_x, goal_y].</p></li>
+<li><p><strong>dimension</strong> (<em>int</em>) – World dimension, expected 2.</p></li>
+<li><p><strong>discrete_action</strong> (<em>int</em>) – Discrete action in {0,1,2,3}.</p></li>
+<li><p><strong>agent</strong> (<em>str</em>) – Agent name.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Continuous action vector of length 2*dimension + 1.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.get_next_point">
+<span class="sig-name descname"><span class="pre">get_next_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.get_next_point"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.get_next_point" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the next 1‑step grid target for a discrete action.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent_x</strong> (<em>float</em>) – Current x.</p></li>
+<li><p><strong>agent_y</strong> (<em>float</em>) – Current y.</p></li>
+<li><p><strong>action</strong> (<em>int</em>) – Discrete action in {0 up, 1 down, 2 left, 3 right}.</p></li>
+<li><p><strong>agent</strong> (<em>str</em>) – Agent name, unused but kept for symmetry.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Target point in world coordinates.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[float, float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.heuristic">
+<span class="sig-name descname"><span class="pre">heuristic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.heuristic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.heuristic" title="Link to this definition">¶</a></dt>
+<dd><p>Return heuristic for A*.</p>
+<p>Currently returns zero to obtain Dijkstra behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>node</strong> (<a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node"><em>Node</em></a>) – Current node.</p></li>
+<li><p><strong>end_node</strong> (<a class="reference internal" href="mas_navigation.node_class.html#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node"><em>Node</em></a>) – Goal node.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Heuristic estimate of remaining cost.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.is_dyn_obstacle">
+<span class="sig-name descname"><span class="pre">is_dyn_obstacle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">current_agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.is_dyn_obstacle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.is_dyn_obstacle" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if a point is inside any other agent’s disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>float</em>) – World x coordinate.</p></li>
+<li><p><strong>y</strong> (<em>float</em>) – World y coordinate.</p></li>
+<li><p><strong>current_agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent to exclude from the check.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the point intersects another agent.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.is_obstacle">
+<span class="sig-name descname"><span class="pre">is_obstacle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_learning</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">override_epsilon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.is_obstacle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.is_obstacle" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if (x, y) lies inside an obstacle region.</p>
+<p>Semantics</p>
+<dl class="simple">
+<dt>Planning / state encoding (<code class="docutils literal notranslate"><span class="pre">q_learning=True</span></code>)</dt><dd><p>Rectangular and random rectangular landmarks are treated as obstacles
+using the planning margin (<code class="docutils literal notranslate"><span class="pre">epsilon_planning</span></code>). The outer boundary
+is not checked here because A* paths do not intersect walls.</p>
+</dd>
+<dt>Runtime (<code class="docutils literal notranslate"><span class="pre">q_learning=False</span></code>)</dt><dd><p>Only rectangular landmarks are treated as obstacles using the runtime
+margin (<code class="docutils literal notranslate"><span class="pre">epsilon_runtime</span></code>). Out-of-bounds is handled by
+<a class="reference internal" href="#mas_navigation.custom_environment.Scenario.is_out_of_bounds" title="mas_navigation.custom_environment.Scenario.is_out_of_bounds"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Scenario.is_out_of_bounds()</span></code></a> and not here.</p>
+</dd>
+</dl>
+<p>The active epsilon can be overridden via <code class="docutils literal notranslate"><span class="pre">override_epsilon</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>float</em>) – World x coordinate.</p></li>
+<li><p><strong>y</strong> (<em>float</em>) – World y coordinate.</p></li>
+<li><p><strong>q_learning</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, use planning semantics and margin; if False, use runtime semantics and margin.</p></li>
+<li><p><strong>override_epsilon</strong> (<em>float</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Margin that replaces the default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the point is inside an obstacle region under the selected semantics.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.last">
+<span class="sig-name descname"><span class="pre">last</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">observe</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">ObsType</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.last"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.last" title="Link to this definition">¶</a></dt>
+<dd><p>Return PettingZoo‑style observation tuple for the current agent.</p>
+<p>Also updates the agent’s Q‑state before returning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>observe</strong> (<em>bool</em>) – If True, compute the observation.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(observation, reward, terminated, truncated, info, q_state)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.next_agent">
+<span class="sig-name descname"><span class="pre">next_agent</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.next_agent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.next_agent" title="Link to this definition">¶</a></dt>
+<dd><p>Advance the internal agent selector to the next agent.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.q_learning_state_space">
+<span class="sig-name descname"><span class="pre">q_learning_state_space</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a_star_new</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.q_learning_state_space"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.q_learning_state_space" title="Link to this definition">¶</a></dt>
+<dd><p>Encode the local observation for tabular Q‑learning.</p>
+<p>Builds a binary occupancy grid around the agent, embeds the A* direction
+into the center cell, keeps the center 3×3 at full resolution, and aggregates
+four 3×4 directional regions into categorical labels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent to encode.</p></li>
+<li><p><strong>a_star_new</strong> (<em>list</em><em>[</em><em>tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em><em>]</em>) – Remaining A* path.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Compact state tuple length 13.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.reset" title="Link to this definition">¶</a></dt>
+<dd><p>Reset the environment and initialize per‑agent A* paths and states.</p>
+<p>Randomizes start and goal positions subject to obstacle and separation constraints.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>seed</strong> (<em>int</em><em> | </em><em>None</em>) – seed.</p></li>
+<li><p><strong>options</strong> (<em>dict</em><em> | </em><em>None</em>) – Unused, kept for API compatibility.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Mapping from agent name to Q‑state, and mapping to raw observation.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[dict[str, tuple[int, …]], dict[str, np.ndarray]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.step" title="Link to this definition">¶</a></dt>
+<dd><p>Advance the environment by one agent action.</p>
+<p>Buffers the action, advances the world when the last agent has acted,
+updates rewards and terminations, and renders if enabled.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>action</strong> (<em>np.ndarray</em><em> | </em><em>int</em><em> | </em><em>None</em>) – Action for the selected agent. None if terminated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_env.update_a_star_paths">
+<span class="sig-name descname"><span class="pre">update_a_star_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">agent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_env.update_a_star_paths"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_env.update_a_star_paths" title="Link to this definition">¶</a></dt>
+<dd><p>Advance and clean the remaining A* path for an agent.</p>
+<p>Removes already reached waypoints based on proximity. Clears the remaining path
+upon entering a goal neighborhood.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>agent</strong> (<a class="reference internal" href="#mas_navigation.custom_environment.Agent" title="mas_navigation.custom_environment.Agent"><em>Agent</em></a>) – Agent instance.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the path list or status changed.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="mas_navigation.custom_environment.raw_print_state">
+<span class="sig-prename descclassname"><span class="pre">mas_navigation.custom_environment.</span></span><span class="sig-name descname"><span class="pre">raw_print_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/custom_environment.html#raw_print_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.custom_environment.raw_print_state" title="Link to this definition">¶</a></dt>
+<dd><p>Print a 2D integer grid to stdout.</p>
+<p>Prints rows from top to bottom for quick inspection of the state before state aggregation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>grid</strong> (<em>list</em><em>[</em><em>list</em><em>[</em><em>int</em><em>]</em><em>]</em>) – 2D grid of cells. Each cell is an integer representing the state of that cell.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Multi-Agent Path Planning and Navigation with A* and Q-Learning</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">mas_navigation.custom_environment module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.Agent"><code class="docutils literal notranslate"><span class="pre">Agent</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.Landmark"><code class="docutils literal notranslate"><span class="pre">Landmark</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.RandomLandmark"><code class="docutils literal notranslate"><span class="pre">RandomLandmark</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.RectLandmark"><code class="docutils literal notranslate"><span class="pre">RectLandmark</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.Scenario"><code class="docutils literal notranslate"><span class="pre">Scenario</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.World"><code class="docutils literal notranslate"><span class="pre">World</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.print_state"><code class="docutils literal notranslate"><span class="pre">print_state()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.raw_env"><code class="docutils literal notranslate"><span class="pre">raw_env</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mas_navigation.custom_environment.raw_print_state"><code class="docutils literal notranslate"><span class="pre">raw_print_state()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.node_class.html">mas_navigation.node_class module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mas_navigation.test.html">mas_navigation.test module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="previous chapter">Multi-Agent Path Planning and Navigation with A* and Q-Learning documentation</a></li>
+      <li>Next: <a href="mas_navigation.node_class.html" title="next chapter">mas_navigation.node_class module</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Laura Hake.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/api/mas_navigation.custom_environment.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,4 +1,4 @@
-from custom_environment import raw_env
+from .custom_environment import raw_env
 import numpy as np
 from simple_pid import PID
 import pickle
@@ -8,12 +8,36 @@ import os
 import matplotlib.pyplot as plt
 
 def stable_hash(state, num_states=1_000_000):
+    """
+    Compute a deterministic hash value for a discrete Q-learning state.
+
+    The state is first converted to a NumPy int32 array, then serialized
+    to bytes, and finally hashed using SHA-256. The result is mapped
+    into the range [0, num_states) via modulo.
+
+    Args:
+        state (array-like): Discrete state representation.
+        num_states (int): Upper bound for hash mapping.
+
+    Returns:
+        int: Stable integer hash in [0, num_states).
+    """
     state = np.array(state, dtype=np.int32)
     state_bytes = state.tobytes()
     return int(hashlib.sha256(state_bytes).hexdigest(), 16) % num_states
 
 
 def print_state(state, size=9):
+    """Print the compact Q-state representation.
+
+    The layout shows a 3x3 center region and four aggregated directional regions
+    in the order top, left, right, bottom.
+    The center cell represents the A* action direction.
+
+    Args:
+        state (Sequence[int]): Encoded state. First 9 entries are the center 3×3 region.
+            Entries 9..12 encode the four aggregated regions.
+    """
     print("=== Q-State Representation ===")
     
     # Extract segments
@@ -45,7 +69,21 @@ def print_state(state, size=9):
 
 
 class ReplayBuffer:
+    """
+    Fixed-size FIFO replay buffer for storing Q-learning transitions.
+
+    Stores per-step tuples of (state, action, reward, next_state, terminate)
+    for experience replay training.
+    """
     def __init__(self, max_size, state_dim, action_dim):
+        """
+        Initialize an empty replay buffer.
+
+        Args:
+            max_size (int): Maximum number of stored transitions.
+            state_dim (int): Dimension of the state vector.
+            action_dim (int): Dimension of the action vector.
+        """
         self.mem_size = max_size
         self.mem_counter = 0
         self.state_memory = []
@@ -55,6 +93,18 @@ class ReplayBuffer:
         self.terminal_memory = []
         
     def store_transition(self, state, action, reward, next_state, terminate):
+        """
+        Store a single transition in the buffer.
+
+        If the buffer is full, the oldest entry is overwritten (FIFO).
+
+        Args:
+            state: Current state.
+            action: Action taken in the current state.
+            reward (float): Immediate reward received.
+            next_state: Resulting state after taking the action.
+            terminate (bool): Whether the episode ended at this step.
+        """
         
         if self.mem_counter < self.mem_size:
             self.state_memory.append(state)
@@ -74,6 +124,15 @@ class ReplayBuffer:
         self.mem_counter += 1 
         
     def sample_buffer(self, batchsize):
+        """
+        Sample a random batch of transitions from the buffer.
+
+        Args:
+            batchsize (int): Number of transitions to sample.
+
+        Returns:
+            tuple: (states, actions, rewards, next_states, terminates)
+        """
         
         max_mem = min(self.mem_counter, self.mem_size) 
         batch = np.random.choice(max_mem, batchsize, replace=False)
@@ -87,7 +146,31 @@ class ReplayBuffer:
         return states, actions, rewards, next_states, terminates
     
 
-def train(seed = None, kappa=1, T=100000, N=10, batchsize = 32, p = 0, c=0.1, checkpoint_freq=5000):
+def train(seed = None, T=100000, N=10, batchsize = 32, p = 0, c=0.1, checkpoint_freq=5000):
+    """
+    Train a multi-agent Q-learning policy in the custom environment.
+
+    Uses an epsilon-greedy policy with per-state adaptive epsilon based
+    on visit counts, and stores transitions in a replay buffer for
+    batch updates. Supports resuming from a saved checkpoint.
+
+    Args:
+        seed (int | None): Random seed for reproducibility.
+        kappa (float): (Unused) Scaling factor placeholder.
+        T (int): Total number of environment steps to run.
+        N (int): Normalization constant for stepsize decay.
+        batchsize (int): Replay buffer sample size for updates.
+        p (float): Exponent for stepsize decay schedule.
+        c (float): Initial stepsize coefficient.
+        checkpoint_freq (int): Steps between checkpoint saves.
+
+    Returns:
+        tuple: (Q, TD_error_per_episode, reward_per_episode, visit_counts)
+            - Q (np.ndarray): Learned Q-table.
+            - TD_error_per_episode (list[float]): Mean TD error per episode.
+            - reward_per_episode (list[float]): Mean reward per episode.
+            - visit_counts (np.ndarray): Number of visits per hashed state.
+    """
     if seed is not None:
         np.random.seed(seed)
     
@@ -276,8 +359,9 @@ def train(seed = None, kappa=1, T=100000, N=10, batchsize = 32, p = 0, c=0.1, ch
             
     return Q, TD_error_per_episode, reward_per_episode, visit_counts
         
-Q, TD_error_per_episode, reward_per_episode, visit_counts =train()
-with open("training_data.pkl", "wb") as f:
-    pickle.dump((Q, TD_error_per_episode, reward_per_episode, visit_counts), f)
+if __name__ == "__main__":
+    Q, TD_error_per_episode, reward_per_episode, visit_counts = train()
+    with open("training_data.pkl", "wb") as f:
+        pickle.dump((Q, TD_error_per_episode, reward_per_episode, visit_counts), f)
 
-print("Trainingsergebnisse gespeichert.")
+    print("Trainingsergebnisse gespeichert.")
