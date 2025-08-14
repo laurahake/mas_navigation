@@ -39,10 +39,105 @@
 <dt class="sig sig-object py" id="mas_navigation.node_class.Node">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">mas_navigation.node_class.</span></span><span class="sig-name descname"><span class="pre">Node</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cost</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">children</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/node_class.html#Node"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.node_class.Node" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Represents a node in the discrete search space used for path planning.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.x">
+<span class="sig-name descname"><span class="pre">x</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.x" title="Link to this definition">¶</a></dt>
+<dd><p>X-coordinate of the node in world or grid space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.y">
+<span class="sig-name descname"><span class="pre">y</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.y" title="Link to this definition">¶</a></dt>
+<dd><p>Y-coordinate of the node in world or grid space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.cost">
+<span class="sig-name descname"><span class="pre">cost</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.cost" title="Link to this definition">¶</a></dt>
+<dd><p>Edge cost to reach this node from its parent.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.cost_to_come">
+<span class="sig-name descname"><span class="pre">cost_to_come</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.cost_to_come" title="Link to this definition">¶</a></dt>
+<dd><p>Accumulated cost from the start node to this node.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.cost_to_go">
+<span class="sig-name descname"><span class="pre">cost_to_go</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.cost_to_go" title="Link to this definition">¶</a></dt>
+<dd><p>Heuristic estimate of cost from this node to the goal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.total_cost">
+<span class="sig-name descname"><span class="pre">total_cost</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.total_cost" title="Link to this definition">¶</a></dt>
+<dd><p>Sum of cost_to_come and cost_to_go.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.children">
+<span class="sig-name descname"><span class="pre">children</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.children" title="Link to this definition">¶</a></dt>
+<dd><p>List of child nodes connected to this node.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node">Node</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mas_navigation.node_class.Node.parent">
+<span class="sig-name descname"><span class="pre">parent</span></span><a class="headerlink" href="#mas_navigation.node_class.Node.parent" title="Link to this definition">¶</a></dt>
+<dd><p>Reference to the parent node in the search tree.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node">Node</a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="mas_navigation.node_class.Node.add_child">
 <span class="sig-name descname"><span class="pre">add_child</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">child_node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/mas_navigation/node_class.html#Node.add_child"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mas_navigation.node_class.Node.add_child" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Add a child node to this node’s children list.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>child_node</strong> (<a class="reference internal" href="#mas_navigation.node_class.Node" title="mas_navigation.node_class.Node"><em>Node</em></a>) – The child node to connect to this node.</p>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 

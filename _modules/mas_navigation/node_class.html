@@ -34,7 +34,30 @@
 <div class="viewcode-block" id="Node">
 <a class="viewcode-back" href="../../api/mas_navigation.node_class.html#mas_navigation.node_class.Node">[docs]</a>
 <span></span><span class="k">class</span> <span class="nc">Node</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a node in the discrete search space used for path planning.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        x (float): X-coordinate of the node in world or grid space.</span>
+<span class="sd">        y (float): Y-coordinate of the node in world or grid space.</span>
+<span class="sd">        cost (float): Edge cost to reach this node from its parent.</span>
+<span class="sd">        cost_to_come (float): Accumulated cost from the start node to this node.</span>
+<span class="sd">        cost_to_go (float): Heuristic estimate of cost from this node to the goal.</span>
+<span class="sd">        total_cost (float): Sum of cost_to_come and cost_to_go.</span>
+<span class="sd">        children (list[Node]): List of child nodes connected to this node.</span>
+<span class="sd">        parent (Node | None): Reference to the parent node in the search tree.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">cost</span><span class="p">,</span> <span class="n">children</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize a Node object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            x (float): X-coordinate of the node.</span>
+<span class="sd">            y (float): Y-coordinate of the node.</span>
+<span class="sd">            cost (float): Edge cost from parent to this node.</span>
+<span class="sd">            children (list[Node] | None): Optional list of initial child nodes.</span>
+<span class="sd">                Defaults to an empty list if None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cost</span> <span class="o">=</span> <span class="n">cost</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span>
@@ -47,6 +70,12 @@
 <div class="viewcode-block" id="Node.add_child">
 <a class="viewcode-back" href="../../api/mas_navigation.node_class.html#mas_navigation.node_class.Node.add_child">[docs]</a>
     <span class="k">def</span> <span class="nf">add_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">child_node</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a child node to this node&#39;s children list.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            child_node (Node): The child node to connect to this node.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">child_node</span><span class="p">)</span></div>
 </div>
 
